@@ -105,6 +105,10 @@ const DICT = {
       'form.submit': 'Записать в журнал',
 
       'quest.delete': 'Удалить',
+      'quest.edit': 'Изменить квест',
+      'quest.edit.short': 'Изм.',
+      'quest.save': 'Сохранить',
+      'quest.cancel': 'Отмена',
       'quest.delete.confirm': 'Удалить «{title}»? Заработанный опыт останется.',
       'window.close': 'Закрыть окно «{name}»',
       'window.min': 'Свернуть окно «{name}»',
@@ -161,6 +165,8 @@ const DICT = {
       substep_added: { log: 'Подшаг · {parent} · {name} · +{xp} XP' },
       step_closed: { log: 'Шаг закрыт целиком · {name} · +{xp} XP' },
       step_deleted: { log: 'Шаг удалён · {name}' },
+      quest_edited: { log: 'Квест изменён · {title}',
+                      head: 'Сохранено', body: '«{title}» обновлён.' },
       phase_added: { log: 'Фаза · {title} · {name} · +{xp} XP' },
       fog_lifted: {
         head: 'Туман рассеялся',
@@ -297,6 +303,10 @@ const DICT = {
       'form.submit': 'Write it down',
 
       'quest.delete': 'Delete',
+      'quest.edit': 'Edit the quest',
+      'quest.edit.short': 'Edit',
+      'quest.save': 'Save',
+      'quest.cancel': 'Cancel',
       'quest.delete.confirm': 'Delete “{title}”? Earned experience stays.',
       'window.close': 'Close the “{name}” window',
       'window.min': 'Minimise the “{name}” window',
@@ -353,6 +363,8 @@ const DICT = {
       substep_added: { log: 'Substep · {parent} · {name} · +{xp} XP' },
       step_closed: { log: 'Step fully closed · {name} · +{xp} XP' },
       step_deleted: { log: 'Step deleted · {name}' },
+      quest_edited: { log: 'Quest edited · {title}',
+                      head: 'Saved', body: '“{title}” is updated.' },
       phase_added: { log: 'Phase · {title} · {name} · +{xp} XP' },
       fog_lifted: {
         head: 'The fog lifted',

@@ -607,6 +607,59 @@ def hit_boss(con, quest_id, _body):
     return flash
 
 
+def update_quest(con, quest_id, body):
+    """Правит уже созданный квест. Меняется только то, что прислали."""
+    quest = fetch_quest(con, quest_id)
+    fields, values = [], []
+
+    def put(column, value):
+        fields.append(f"{column} = ?")
+        values.append(value)
+
+    if "title" in body:
+        put("title", want_text(body, "title", limit=MAX_TITLE))
+    if "why" in body:
+        put("why", want_text(body, "why", limit=MAX_WHY, required=False))
+    if "stat" in body:
+        # Уже начисленные очки остаются на прежней характеристике: это
+        # сделанная работа, и задним числом её не переписывают.
+        put("stat", want_choice(body, "stat", STAT_KEYS))
+    if "dueDate" in body:
+        put("due_date", want_date(body, "dueDate"))
+
+    if quest["kind"] == "side":
+        if "xp" in body:
+            put("xp_reward", want_int(body, "xp", low=1, high=MAX_CHAPTER_XP))
+        if "daily" in body:
+            daily = 1 if body["daily"] else 0
+            put("daily", daily)
+            if not daily:
+                put("streak", 0)          # без ежедневки серия теряет смысл
+
+    if quest["kind"] == "boss":
+        if "hitXp" in body:
+            put("hit_xp", want_int(body, "hitXp", low=1, high=MAX_CHAPTER_XP))
+        if "xp" in body:
+            put("xp_reward", want_int(body, "xp", low=0, high=MAX_HP * MAX_CHAPTER_XP))
+        if "hp" in body:
+            hp = want_int(body, "hp", low=1, high=MAX_HP)
+            dealt = quest["hp_max"] - quest["hp_left"]
+            if hp < dealt:
+                raise Bad(f"По боссу уже нанесено {dealt} ударов — меньше не задать", 409)
+            put("hp_max", hp)
+            put("hp_left", hp - dealt)     # нанесённый урон не пропадает
+
+    if not fields:
+        return []
+
+    values.append(quest_id)
+    con.execute(f"UPDATE quests SET {', '.join(fields)} WHERE id = ?", values)
+
+    title = body.get("title", quest["title"]).strip() if "title" in body else quest["title"]
+    log(con, "quest_edited", title=title)
+    return [note("quest_edited", title=title)]
+
+
 def delete_quest(con, quest_id, _body):
     quest = fetch_quest(con, quest_id)
     con.execute("DELETE FROM quests WHERE id = ?", (quest_id,))   # главы уйдут каскадом
@@ -673,6 +726,7 @@ ROUTES = (
     (r"^/api/quests/(\d+)/chapters$", add_chapter),
     (r"^/api/quests/(\d+)/hit$", hit_boss),
     (r"^/api/quests/(\d+)/toggle$", toggle_side),
+    (r"^/api/quests/(\d+)/update$", update_quest),
     (r"^/api/quests/(\d+)/delete$", delete_quest),
     (r"^/api/chapters/(\d+)/toggle$", toggle_chapter),
     (r"^/api/chapters/(\d+)/delete$", delete_chapter),

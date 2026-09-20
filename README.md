@@ -34,7 +34,7 @@ Read from the environment; the code only holds defaults.
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -t .   # 101 tests: server
+python -m unittest discover -s tests -t .   # 111 tests: server
 node --test tests/test_layout.mjs           # 15 tests: window layout
 ```
 
@@ -74,6 +74,7 @@ That is what lets a language switch rewrite the whole journal after the fact.
 | `POST /api/quests/{id}/chapters` | add a step, a substep or a boss phase |
 | `POST /api/quests/{id}/toggle`   | tick a side quest                 |
 | `POST /api/quests/{id}/hit`      | strike a boss                     |
+| `POST /api/quests/{id}/update`   | edit a quest                      |
 | `POST /api/quests/{id}/delete`   | delete a quest                    |
 | `POST /api/chapters/{id}/toggle` | tick a step                       |
 | `POST /api/chapters/{id}/delete` | delete a step with its substeps   |

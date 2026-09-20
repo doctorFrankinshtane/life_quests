@@ -190,6 +190,94 @@ function chapterForm(quest) {
   return form;
 }
 
+/** Какой квест сейчас правится. Живёт вне разметки: отрисовка её пересобирает. */
+let editingQuest = null;
+
+function field(label, control) {
+  return el('div', 'field', el('label', 'lab', label), control);
+}
+
+/**
+ * Правка квеста на месте. Поля зависят от типа: у сайда цена и ежедневка,
+ * у босса число ударов и опыт за удар.
+ */
+function editForm(quest, kind) {
+  const title = el('input', { type: 'text', maxLength: 120, required: true, value: quest.title });
+  const stat = el('select', {}, ...api.state.limits.stats.map((key) =>
+    el('option', { value: key, selected: key === quest.stat }, statName(key))));
+  const due = el('input', { type: 'date', value: quest.dueDate || '' });
+
+  const rows = [field(t('form.title'), title)];
+  const pair = [field(t('form.stat'), stat), field(t('form.due'), due)];
+
+  let why = null;
+  let amount = null;
+  let daily = null;
+  let hits = null;
+  let hitXp = null;
+
+  if (kind === 'main') {
+    why = el('input', { type: 'text', maxLength: 300, value: quest.why || '' });
+    rows.push(field(t('form.why'), why));
+  }
+  if (kind === 'side') {
+    amount = el('input', { type: 'number', min: 1, max: 500, value: quest.xp });
+    pair.push(field(t('form.xp'), amount));
+    daily = el('input', { type: 'checkbox', checked: quest.daily });
+  }
+  if (kind === 'boss') {
+    hits = el('input', { type: 'number', min: 1, max: 999, value: quest.hpMax });
+    hitXp = el('input', { type: 'number', min: 1, max: 500, value: quest.hitXp });
+    pair.push(field(t('form.hp'), hits), field(t('form.hit'), hitXp));
+  }
+
+  rows.push(el('div', 'field-row', ...pair));
+  if (daily) rows.push(el('label', 'check', daily, el('span', {}, t('form.daily'))));
+
+  const cancel = el('button', { className: 'act', type: 'button' }, t('quest.cancel'));
+  cancel.addEventListener('click', () => {
+    editingQuest = null;
+    renderAll();
+  });
+
+  rows.push(el('div', 'edit-actions',
+    el('button', { className: 'act', type: 'submit' }, t('quest.save')),
+    cancel,
+  ));
+
+  const form = el('form', 'quest editing', ...rows);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const patch = {
+      title: title.value,
+      stat: stat.value,
+      dueDate: due.value || null,
+    };
+    if (why) patch.why = why.value;
+    if (amount) patch.xp = Number(amount.value);
+    if (daily) patch.daily = daily.checked;
+    if (hits) patch.hp = Number(hits.value);
+    if (hitXp) patch.hitXp = Number(hitXp.value);
+
+    editingQuest = null;
+    act(() => api.updateQuest(quest.id, patch));
+  });
+
+  queueMicrotask(() => title.focus());
+  return form;
+}
+
+function editButton(quest) {
+  const button = el('button', { className: 'act q-edit', type: 'button', title: t('quest.edit') },
+    t('quest.edit.short'));
+  button.setAttribute('aria-label', `${t('quest.edit')}: ${quest.title}`);
+  button.addEventListener('click', () => {
+    editingQuest = editingQuest === quest.id ? null : quest.id;
+    renderAll();
+  });
+  return button;
+}
+
 function killButton(quest) {
   const label = `${t('quest.delete')}: ${quest.title}`;
   const button = el('button', { className: 'act q-kill', type: 'button', title: label }, '×');
@@ -203,13 +291,15 @@ function killButton(quest) {
 }
 
 function mainCard(quest) {
+  if (editingQuest === quest.id) return editForm(quest, 'main');
+
   const card = el('article', 'quest',
     el('div', 'q-head',
       el('div', {},
         el('div', 'q-name', quest.title),
         quest.why ? el('div', 'q-why', quest.why) : null,
       ),
-      killButton(quest),
+      el('div', 'q-tools', editButton(quest), killButton(quest)),
     ),
     el('div', 'chips',
       el('span', 'chip fill', t('mains.badge')),
@@ -271,6 +361,8 @@ function phaseButton(phase, index, phases) {
 }
 
 function bossCard(boss) {
+  if (editingQuest === boss.id) return editForm(boss, 'boss');
+
   const hit = el('button', { className: 'act', type: 'button' },
     t('boss.hit', { xp: boss.hitXp }));
   hit.addEventListener('click', () => act(() => api.hitBoss(boss.id)));
@@ -286,7 +378,7 @@ function bossCard(boss) {
           deadlineChip(boss),
         ),
       ),
-      killButton(boss),
+      el('div', 'q-tools', editButton(boss), killButton(boss)),
     ),
     el('div', {},
       el('div', { className: 'row', style: 'margin-bottom:4px' },
@@ -315,6 +407,8 @@ function renderBosses() {
    --------------------------------------------------------------- */
 
 function sideRow(side) {
+  if (editingQuest === side.id) return editForm(side, 'side');
+
   const meta = [statName(side.stat)];
   if (side.daily) meta.push(t('sides.streak', { n: side.streak }));
   if (side.daysLeft !== null && side.daysLeft !== undefined && side.daysLeft < 0) {
@@ -336,7 +430,8 @@ function sideRow(side) {
   );
   row.setAttribute('aria-pressed', String(side.done));
   row.addEventListener('click', () => act(() => api.toggleSide(side.id)));
-  return row;
+
+  return el('div', 'side-line', row, editButton(side), killButton(side));
 }
 
 function renderSides() {

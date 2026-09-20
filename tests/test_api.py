@@ -458,6 +458,98 @@ class Boss(Base):
         self.assertEqual(self.hp(), 3)                       # здоровье решает, а не фазы
 
 
+class EditQuest(Base):
+    def test_title_and_reason_change(self):
+        quest = self.make_main(title="Цель", stat="craft")
+        api.update_quest(self.con, quest["id"], {"title": "  Новая цель  ", "why": "чтобы не бросить"})
+
+        fresh = self.state()["mains"][0]
+        self.assertEqual(fresh["title"], "Новая цель")
+        self.assertEqual(fresh["why"], "чтобы не бросить")
+
+    def test_only_sent_fields_change(self):
+        quest = self.make_main(title="Цель", stat="craft")
+        api.update_quest(self.con, quest["id"], {"title": "Другая"})
+
+        fresh = self.state()["mains"][0]
+        self.assertEqual(fresh["stat"], "craft", "характеристику не трогали")
+
+    def test_due_date_can_be_set_and_cleared(self):
+        quest = self.make_main()
+        soon = (date.today() + timedelta(days=9)).isoformat()
+
+        api.update_quest(self.con, quest["id"], {"dueDate": soon})
+        self.assertEqual(self.state()["mains"][0]["daysLeft"], 9)
+
+        api.update_quest(self.con, quest["id"], {"dueDate": None})
+        self.assertIsNone(self.state()["mains"][0]["daysLeft"])
+
+    def test_earned_experience_survives_an_edit(self):
+        quest = self.make_main(stat="craft")
+        api.add_chapter(self.con, quest["id"], {"name": "Шаг", "xp": 20})
+        api.toggle_chapter(self.con, self.state()["mains"][0]["chapters"][0]["id"], {})
+        earned = self.xp_total()
+
+        # шаг закрыл квест, поэтому на шкале ещё и очки за бонус
+        points = xp.stat_points(20) + xp.stat_points(round(20 * api.CLOSE_BONUS_SHARE))
+
+        api.update_quest(self.con, quest["id"], {"stat": "soul", "title": "Переименовали"})
+        self.assertEqual(self.xp_total(), earned)
+        self.assertEqual(self.stat("craft"), points, "очки остались на прежней шкале")
+        self.assertEqual(self.stat("soul"), 0, "новая шкала не получает чужую работу")
+
+    def test_side_xp_and_daily_change(self):
+        side = self.make_side(xp=10, daily=True)
+        api.update_quest(self.con, side["id"], {"xp": 25, "daily": False})
+
+        fresh = self.state()["sides"][0]
+        self.assertEqual(fresh["xp"], 25)
+        self.assertFalse(fresh["daily"])
+        self.assertEqual(fresh["streak"], 0, "без ежедневки серия обнуляется")
+
+    def test_boss_hit_count_keeps_the_damage_dealt(self):
+        boss = self.make_boss(hp=10, hitXp=5)
+        api.hit_boss(self.con, boss["id"], {})
+        api.hit_boss(self.con, boss["id"], {})          # нанесено 2 удара
+
+        api.update_quest(self.con, boss["id"], {"hp": 20})
+        fresh = self.state()["bosses"][0]
+        self.assertEqual(fresh["hpMax"], 20)
+        self.assertEqual(fresh["hpLeft"], 18, "два удара не должны пропасть")
+
+    def test_boss_cannot_shrink_below_damage_dealt(self):
+        boss = self.make_boss(hp=10, hitXp=5)
+        for _ in range(4):
+            api.hit_boss(self.con, boss["id"], {})
+
+        with self.assertRaises(api.Bad) as caught:
+            api.update_quest(self.con, boss["id"], {"hp": 3})
+        self.assertEqual(caught.exception.status, 409)
+
+    def test_bad_edits_are_rejected(self):
+        quest = self.make_main()
+        cases = [
+            ({"title": "   "}, "пустое название"),
+            ({"title": "я" * 200}, "слишком длинно"),
+            ({"stat": "удача"}, "неизвестная характеристика"),
+            ({"dueDate": "31.12.2026"}, "формат даты"),
+        ]
+        for body, why in cases:
+            with self.subTest(why=why), self.assertRaises(api.Bad):
+                api.update_quest(self.con, quest["id"], body)
+
+    def test_empty_edit_changes_nothing(self):
+        quest = self.make_main(title="Цель")
+        before = len(self.state()["events"])
+        self.assertEqual(api.update_quest(self.con, quest["id"], {}), [])
+        self.assertEqual(len(self.state()["events"]), before, "пустая правка не пишется в журнал")
+
+    def test_unknown_quest_is_404(self):
+        with self.assertRaises(api.Bad) as caught:
+            api.update_quest(self.con, 9999, {"title": "Нет такого"})
+        self.assertEqual(caught.exception.status, 404)
+
+
 class Deletion(Base):
     def test_delete_removes_quest_and_chapters(self):
         quest = self.make_main()

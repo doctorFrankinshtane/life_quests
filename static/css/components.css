@@ -79,7 +79,20 @@
 .q-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .q-name { font-size: 14px; font-weight: 700; line-height: 1.2; }
 .q-why { font-size: 11.5px; color: var(--ink-dim); }
+.q-tools { display: flex; flex: none; gap: 4px; }
 .q-kill { flex: none; width: 15px; height: 15px; font-family: var(--font-mono); font-size: 10px; }
+.q-edit { flex: none; min-height: 15px; padding: 0 6px; font-size: 10.5px; }
+
+/* Карточка на время правки превращается в форму — рамка та же. */
+.quest.editing { gap: 7px; }
+.edit-actions { display: flex; gap: 6px; margin-top: 2px; }
+
+/* У сайд-квеста кнопки прячутся до наведения: список должен читаться. */
+.side-line { display: flex; align-items: flex-start; gap: 4px; }
+.side-line .side { flex: 1; min-width: 0; }
+.side-line .q-edit, .side-line .q-kill { visibility: hidden; margin-top: 3px; }
+.side-line:hover .q-edit, .side-line:hover .q-kill,
+.side-line .q-edit:focus-visible, .side-line .q-kill:focus-visible { visibility: visible; }
 
 .chap {
   display: grid; grid-template-columns: 13px 1fr auto auto; gap: 7px;

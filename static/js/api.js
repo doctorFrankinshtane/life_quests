@@ -62,5 +62,6 @@ export const toggleChapter = (chapterId) => send(`/api/chapters/${chapterId}/tog
 export const deleteChapter = (chapterId) => send(`/api/chapters/${chapterId}/delete`);
 export const toggleSide = (questId) => send(`/api/quests/${questId}/toggle`);
 export const hitBoss = (questId) => send(`/api/quests/${questId}/hit`);
+export const updateQuest = (questId, patch) => send(`/api/quests/${questId}/update`, patch);
 export const deleteQuest = (questId) => send(`/api/quests/${questId}/delete`);
 export const updateProfile = (patch) => send('/api/profile', patch);
