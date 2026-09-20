@@ -10,6 +10,7 @@ export const state = {
   mains: [],
   bosses: [],
   sides: [],
+  archive: [],
   events: [],
   limits: { maxMains: 3, skins: [] },
 };
@@ -64,4 +65,6 @@ export const toggleSide = (questId) => send(`/api/quests/${questId}/toggle`);
 export const hitBoss = (questId) => send(`/api/quests/${questId}/hit`);
 export const updateQuest = (questId, patch) => send(`/api/quests/${questId}/update`, patch);
 export const deleteQuest = (questId) => send(`/api/quests/${questId}/delete`);
+export const restoreArchived = (entryId) => send(`/api/archive/${entryId}/restore`);
+export const purgeArchive = (entryId) => send(`/api/archive/${entryId}/delete`);
 export const updateProfile = (patch) => send('/api/profile', patch);

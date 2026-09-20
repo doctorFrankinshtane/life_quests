@@ -136,6 +136,14 @@
 .side .meta { font-size: 10.5px; color: var(--ink-dim); }
 .side:hover .meta { color: var(--sel-fg); }
 
+/* Записи архива: строки без флажка — их не отмечают, только возвращают. */
+.archived { flex: 1; min-width: 0; padding: 4px 3px; font-size: 12px; }
+.archived .name { font-weight: 700; }
+.archived .meta { font-size: 10.5px; color: var(--ink-dim); }
+.archived-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.side-line .arch-btn { visibility: hidden; margin-top: 3px; }
+.side-line:hover .arch-btn, .arch-btn:focus-visible { visibility: visible; }
+
 /* ---------------------------------------------------------------
    БОСС
    --------------------------------------------------------------- */

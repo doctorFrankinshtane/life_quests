@@ -48,15 +48,50 @@ LATER_COLUMNS = (
 # Колонки, которые заменены и больше не нужны.
 DROPPED_COLUMNS = (("quests", "daily"),)
 
+# Таблица архива: снимок квеста на момент ухода с доски. Дублируется строкой
+# из schema.sql, чтобы старая база догоняла схему той же командой migrate.
+ARCHIVE_SQL = """CREATE TABLE archive (
+  id           INTEGER PRIMARY KEY,
+  kind         TEXT    NOT NULL CHECK (kind IN ('main', 'side', 'boss')),
+  title        TEXT    NOT NULL CHECK (length(trim(title)) > 0),
+  why          TEXT    NOT NULL DEFAULT '',
+  stat         TEXT    NOT NULL,
+  due_date     TEXT,
+  xp           INTEGER NOT NULL DEFAULT 0 CHECK (xp >= 0),
+  hp_max       INTEGER CHECK (hp_max IS NULL OR hp_max > 0),
+  hp_left      INTEGER CHECK (hp_left IS NULL OR hp_left >= 0),
+  hit_xp       INTEGER CHECK (hit_xp IS NULL OR hit_xp > 0),
+  repeat_unit  TEXT    CHECK (repeat_unit IS NULL OR repeat_unit IN ('day', 'week', 'month')),
+  repeat_every INTEGER NOT NULL DEFAULT 1,
+  period_start TEXT,
+  streak       INTEGER NOT NULL DEFAULT 0,
+  done         INTEGER NOT NULL DEFAULT 0,
+  closed_at    TEXT,
+  reason       TEXT    NOT NULL CHECK (reason IN ('closed', 'deleted')),
+  chapters     TEXT    NOT NULL DEFAULT '[]',
+  archived_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+)"""
+
 
 def columns_of(con, table):
     return {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
+
+
+def tables_of(con):
+    return {
+        row["name"]
+        for row in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
 
 
 def migrate(con):
     """Доводит старую базу до текущей схемы. Возвращает список изменений."""
     changes = []
     with con:
+        if "archive" not in tables_of(con):
+            con.execute(ARCHIVE_SQL)
+            changes.append("archive (таблица)")
+
         for table, column, definition in LATER_COLUMNS:
             if column in columns_of(con, table):
                 continue

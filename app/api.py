@@ -410,6 +410,22 @@ def read_state(con, today=None):
         "SELECT at, code, params FROM events ORDER BY id DESC LIMIT ?", (MAX_EVENTS,)
     ).fetchall()
 
+    archive = []
+    for row in con.execute("SELECT * FROM archive ORDER BY id DESC"):
+        chapters = json.loads(row["chapters"])
+        archive.append({
+            "id": row["id"],
+            "kind": row["kind"],
+            "title": row["title"],
+            "stat": row["stat"],
+            "xp": row["xp"],
+            "reason": row["reason"],
+            "closedAt": row["closed_at"],
+            "archivedAt": row["archived_at"],
+            "stepsTotal": len(chapters),
+            "stepsDone": sum(1 for step in chapters if step["done"]),
+        })
+
     return {
         "profile": {
             "name": profile["name"],
@@ -426,6 +442,7 @@ def read_state(con, today=None):
         "mains": mains,
         "bosses": bosses,
         "sides": sides,
+        "archive": archive,
         "events": [
             {"at": row["at"][11:], "code": row["code"], "params": json.loads(row["params"])}
             for row in reversed(events)
@@ -511,12 +528,6 @@ def add_chapter(con, quest_id, body):
     quest = fetch_quest(con, quest_id)
     if quest["kind"] == "side":
         raise Bad("У сайд-квеста не бывает шагов", 409)
-
-    # Новый шаг у закрытого квеста означает, что работа не закончена:
-    # квест возвращается на доску, бонус за закрытие снимается.
-    if quest["done"]:
-        reopen_quest(con, quest)
-        quest = fetch_quest(con, quest_id)
 
     name = want_text(body, "name", limit=MAX_TITLE)
     amount = want_int(body, "xp", low=1, high=MAX_CHAPTER_XP, default=DEFAULT_CHAPTER_XP)
@@ -627,6 +638,7 @@ def settle_main(con, quest):
     )
     log(con, "main_closed", title=quest["title"], bonus=bonus)
     flash.append(note("main_closed", title=quest["title"], bonus=bonus))
+    archive_quest(con, quest["id"], "closed")
     return flash
 
 
@@ -691,6 +703,7 @@ def hit_boss(con, quest_id, _body):
     con.execute("UPDATE chapters SET done = 1 WHERE quest_id = ?", (quest_id,))
     log(con, "boss_defeated", title=quest["title"], xp=quest["xp_reward"])
     flash.append(note("boss_defeated", title=quest["title"], xp=quest["xp_reward"]))
+    archive_quest(con, quest_id, "closed")
     return flash
 
 
@@ -759,9 +772,127 @@ def update_quest(con, quest_id, body):
 
 def delete_quest(con, quest_id, _body):
     quest = fetch_quest(con, quest_id)
-    con.execute("DELETE FROM quests WHERE id = ?", (quest_id,))   # главы уйдут каскадом
+    archive_quest(con, quest_id, "deleted")
     log(con, "quest_deleted", title=quest["title"])
     return [note("quest_deleted", title=quest["title"])]
+
+
+# --------------------------------------------------------------------------
+# Архив
+# --------------------------------------------------------------------------
+
+def chapter_snapshot(con, quest_id):
+    """Снимок шагов квеста: дерево в JSON, живёт в архиве для возврата."""
+    rows = con.execute(
+        "SELECT * FROM chapters WHERE quest_id = ? ORDER BY sort, id", (quest_id,)
+    ).fetchall()
+    nodes, roots = {}, []
+    for row in rows:
+        nodes[row["id"]] = {
+            "name": row["name"],
+            "xp": row["xp"],
+            "done": bool(row["done"]),
+            "children": [],
+        }
+    for row in rows:
+        node = nodes[row["id"]]
+        parent = nodes.get(row["parent_id"])
+        if parent is None:
+            roots.append(node)
+        else:
+            parent["children"].append(node)
+    return roots
+
+
+def archive_quest(con, quest_id, reason):
+    """Убирает квест с доски: снимок в archive, строка из quests.
+
+    xp — награда при закрытии: у мейна это сумма шагов, у сайда и босса —
+    xp_reward. Сайды попадают сюда только удалением: закрытая ежедневка
+    остаётся на доске до конца периода.
+    """
+    quest = fetch_quest(con, quest_id)
+    amount = quest["xp_reward"]
+    if quest["kind"] == "main":
+        amount = con.execute(
+            "SELECT coalesce(sum(xp), 0) AS n FROM chapters WHERE quest_id = ?", (quest_id,)
+        ).fetchone()["n"]
+
+    con.execute(
+        """INSERT INTO archive
+              (kind, title, why, stat, due_date, xp, hp_max, hp_left, hit_xp,
+               repeat_unit, repeat_every, period_start, streak, done,
+               closed_at, reason, chapters)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            quest["kind"], quest["title"], quest["why"], quest["stat"], quest["due_date"],
+            amount, quest["hp_max"], quest["hp_left"], quest["hit_xp"],
+            quest["repeat_unit"], quest["repeat_every"], quest["period_start"],
+            quest["streak"], quest["done"], quest["done_at"], reason,
+            json.dumps(chapter_snapshot(con, quest_id), ensure_ascii=False),
+        ),
+    )
+    con.execute("DELETE FROM quests WHERE id = ?", (quest_id,))   # главы уйдут каскадом
+
+
+def insert_chapter_rows(con, quest_id, nodes, parent_id=None):
+    """Восстанавливает дерево шагов из снимка, сохраняя порядок и отметки."""
+    for sort, node in enumerate(nodes, 1):
+        row_id = con.execute(
+            """INSERT INTO chapters (quest_id, parent_id, name, xp, done, sort)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+            (quest_id, parent_id, node["name"], node["xp"], 1 if node["done"] else 0, sort),
+        ).lastrowid
+        insert_chapter_rows(con, quest_id, node["children"], row_id)
+
+
+def restore_archived(con, archive_id, _body):
+    """Возвращает квест из архива на доску. Запись архива исчезает."""
+    row = con.execute("SELECT * FROM archive WHERE id = ?", (archive_id,)).fetchone()
+    if row is None:
+        raise Bad("В архиве нет такой записи", 404)
+
+    # Закрытый квест возвращается открытым: закрытие отменяется, награда за
+    # него снимается, а заработанное по дороге (шаги, удары) остаётся.
+    # Удалённый возвращается ровно тем, каким был, — отмена удаления ничего
+    # не пересчитывает.
+    closed = row["reason"] == "closed"
+    quest_id = con.execute(
+        """INSERT INTO quests
+              (kind, title, why, stat, due_date, xp_reward, hp_max, hp_left, hit_xp,
+               repeat_unit, repeat_every, period_start, streak, done, done_at, sort)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            row["kind"], row["title"], row["why"], row["stat"], row["due_date"],
+            row["xp"] if row["kind"] != "main" else 0,
+            row["hp_max"],
+            row["hp_max"] if closed else row["hp_left"],
+            row["hit_xp"], row["repeat_unit"], row["repeat_every"], row["period_start"],
+            row["streak"], 0 if closed else row["done"],
+            None if closed else row["closed_at"],
+            next_sort(con, row["kind"]),
+        ),
+    ).lastrowid
+
+    insert_chapter_rows(con, quest_id, json.loads(row["chapters"]))
+
+    if closed:
+        amount = close_bonus(con, quest_id) if row["kind"] == "main" else row["xp"]
+        take_xp(con, amount, row["stat"])
+
+    con.execute("DELETE FROM archive WHERE id = ?", (archive_id,))
+    log(con, "quest_restored", title=row["title"])
+    return [note("quest_restored", title=row["title"])]
+
+
+def purge_archive(con, archive_id, _body):
+    """Стирает запись из архива навсегда. Квеста это не касается — его там нет."""
+    row = con.execute("SELECT * FROM archive WHERE id = ?", (archive_id,)).fetchone()
+    if row is None:
+        raise Bad("В архиве нет такой записи", 404)
+    con.execute("DELETE FROM archive WHERE id = ?", (archive_id,))
+    log(con, "archive_purged", title=row["title"])
+    return [note("archive_purged", title=row["title"])]
 
 
 def update_profile(con, _target, body):
@@ -827,6 +958,8 @@ ROUTES = (
     (r"^/api/quests/(\d+)/delete$", delete_quest),
     (r"^/api/chapters/(\d+)/toggle$", toggle_chapter),
     (r"^/api/chapters/(\d+)/delete$", delete_chapter),
+    (r"^/api/archive/(\d+)/restore$", restore_archived),
+    (r"^/api/archive/(\d+)/delete$", purge_archive),
     (r"^/api/profile$", update_profile),
 )
 

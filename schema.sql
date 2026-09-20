@@ -1,6 +1,6 @@
 -- Life Quests · схема базы
 --
--- Пять таблиц. Квесты всех типов лежат в одной таблице: мейн, сайд и босс
+-- Шесть таблиц. Квесты всех типов лежат в одной таблице: мейн, сайд и босс
 -- отличаются набором заполненных полей, а не отдельными сущностями.
 --
 -- Уровень героя нигде не хранится — он выводится из xp_total (app/xp.py).
@@ -95,3 +95,31 @@ CREATE TABLE events (
   params TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX events_recent ON events (id DESC);
+
+-- Архив. Снимок квеста на момент, когда он ушёл с доски: закрылся (мейн
+-- или босс) или был удалён (любой тип). Главы лежат одним JSON-полем —
+-- живыми им быть не нужно, они нужны только для возврата.
+-- xp — награда при закрытии: для мейна это сумма шагов, для сайда и босса —
+-- xp_reward. Причина архивации: closed (закрыт) или deleted (удалён).
+CREATE TABLE archive (
+  id           INTEGER PRIMARY KEY,
+  kind         TEXT    NOT NULL CHECK (kind IN ('main', 'side', 'boss')),
+  title        TEXT    NOT NULL CHECK (length(trim(title)) > 0),
+  why          TEXT    NOT NULL DEFAULT '',
+  stat         TEXT    NOT NULL,
+  due_date     TEXT,
+  xp           INTEGER NOT NULL DEFAULT 0 CHECK (xp >= 0),
+  hp_max       INTEGER CHECK (hp_max IS NULL OR hp_max > 0),
+  hp_left      INTEGER CHECK (hp_left IS NULL OR hp_left >= 0),
+  hit_xp       INTEGER CHECK (hit_xp IS NULL OR hit_xp > 0),
+  repeat_unit  TEXT    CHECK (repeat_unit IS NULL OR repeat_unit IN ('day', 'week', 'month')),
+  repeat_every INTEGER NOT NULL DEFAULT 1 CHECK (repeat_every > 0),
+  period_start TEXT,
+  streak       INTEGER NOT NULL DEFAULT 0 CHECK (streak >= 0),
+  done         INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+  closed_at    TEXT,
+  reason       TEXT    NOT NULL CHECK (reason IN ('closed', 'deleted')),
+  chapters     TEXT    NOT NULL DEFAULT '[]',
+  archived_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+CREATE INDEX archive_recent ON archive (id DESC);

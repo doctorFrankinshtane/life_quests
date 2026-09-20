@@ -52,6 +52,7 @@ class EmptyState(Base):
         self.assertEqual(state["mains"], [])
         self.assertEqual(state["sides"], [])
         self.assertEqual(state["bosses"], [])
+        self.assertEqual(state["archive"], [])
         self.assertEqual(state["profile"]["level"], 1)
         self.assertEqual(state["profile"]["xpTotal"], 0)
 
@@ -223,15 +224,20 @@ class Chapters(Base):
         self.assertEqual(len(closed), 1)
         self.assertEqual(closed[0]["params"]["bonus"], bonus)
 
-    def test_reopening_a_chapter_reopens_the_quest(self):
+        archive = self.state()["archive"]
+        self.assertEqual(len(archive), 1)
+        self.assertEqual(archive[0]["reason"], "closed")
+        self.assertEqual(archive[0]["xp"], 50)
+
+    def test_closed_quest_comes_back_from_archive(self):
         for chapter in self.chapters():
             api.toggle_chapter(self.con, chapter["id"], {})
-        closed = self.con.execute(
-            "SELECT id FROM chapters ORDER BY sort DESC LIMIT 1"
-        ).fetchone()["id"]
+        entry = self.state()["archive"][0]
 
-        api.toggle_chapter(self.con, closed, {})
+        api.restore_archived(self.con, entry["id"], {})
         self.assertEqual(len(self.state()["mains"]), 1)
+        # 50 за шаги; бонус за закрытие вернулся: квест снова открыт
+        self.assertEqual(self.xp_total(), 50)
 
 
 class Substeps(Base):
@@ -277,20 +283,25 @@ class Substeps(Base):
         self.assertEqual(self.xp_total(), 10)
 
         api.toggle_chapter(self.con, second["id"], {})
-        self.assertTrue(self.step_done(self.step["id"]), "шаг должен закрыться сам")
         # 10 + 10 за подшаги, 40 за шаг, четверть от 60 за закрытие квеста
         self.assertEqual(self.xp_total(), 10 + 10 + 40 + round(60 * api.CLOSE_BONUS_SHARE))
+        self.assertEqual(self.state()["mains"], [], "все подшаги отмечены — квест закрылся")
+        self.assertEqual(self.state()["archive"][0]["stepsDone"], 1,
+                         "шаг закрылся сам вместе с квестом")
 
-    def test_unticking_a_substep_reopens_the_step_and_the_quest(self):
+    def test_restore_keeps_closed_steps_closed(self):
         first = self.add_sub("Забрать военный билет", 10)
         second = self.add_sub("Подать заявление", 10)
         api.toggle_chapter(self.con, first["id"], {})
         api.toggle_chapter(self.con, second["id"], {})
+        self.assertEqual(self.state()["mains"], [], "квест закрылся")
 
-        api.toggle_chapter(self.con, second["id"], {})
-        self.assertFalse(self.step_done(self.step["id"]), "шаг должен снова открыться")
-        self.assertEqual(len(self.state()["mains"]), 1, "квест должен вернуться на доску")
-        self.assertEqual(self.xp_total(), 10)
+        api.restore_archived(self.con, self.state()["archive"][0]["id"], {})
+        self.assertEqual(len(self.state()["mains"]), 1, "квест вернулся на доску")
+        self.assertTrue(self.step_done(self.step["id"]),
+                        "шаг остаётся закрытым: работа сделана")
+        # 10 + 10 за подшаги и 40 за шаг; бонус за закрытие вернулся назад
+        self.assertEqual(self.xp_total(), 10 + 10 + 40)
 
     def test_substep_of_a_substep_is_rejected(self):
         sub = self.add_sub("Забрать военный билет")
@@ -306,10 +317,11 @@ class Substeps(Base):
                             {"name": "Чужой подшаг", "parentId": self.step["id"]})
         self.assertEqual(caught.exception.status, 409)
 
-    def test_substep_added_to_a_closed_step_reopens_it(self):
+    def test_substep_added_to_a_restored_step_reopens_it(self):
         api.toggle_chapter(self.con, self.step["id"], {})
         self.assertEqual(self.state()["mains"], [], "квест закрылся единственным шагом")
 
+        api.restore_archived(self.con, self.state()["archive"][0]["id"], {})
         api.add_chapter(self.con, self.quest["id"],
                         {"name": "Забрать военный билет", "parentId": self.step["id"], "xp": 10})
 
@@ -361,6 +373,7 @@ class DeleteStep(Base):
         self.assertEqual(self.con.execute("SELECT count(*) AS n FROM chapters").fetchone()["n"], 0)
 
     def test_earned_experience_stays(self):
+        api.add_chapter(self.con, self.quest["id"], {"name": "Купить билеты", "xp": 10})
         api.toggle_chapter(self.con, self.step["id"], {})
         earned = self.xp_total()
         api.delete_chapter(self.con, self.step["id"], {})
@@ -378,10 +391,9 @@ class DeleteStep(Base):
         self.assertFalse(self.steps()[0]["done"], "опечатка всё ещё держит шаг открытым")
 
         api.delete_chapter(self.con, children[1]["id"], {})
-        closed = self.con.execute(
-            "SELECT done FROM chapters WHERE id = ?", (self.step["id"],)).fetchone()["done"]
-        self.assertEqual(closed, 1, "шаг должен закрыться сам")
-        self.assertEqual(self.state()["mains"], [], "и закрыть квест")
+        self.assertEqual(self.state()["mains"], [], "шаг закрылся сам и закрыл квест")
+        self.assertEqual(self.state()["archive"][0]["stepsDone"], 1,
+                         "шаг закрылся сам: открытых подшагов не осталось")
 
     def test_unknown_step_is_404(self):
         with self.assertRaises(api.Bad) as caught:
@@ -542,7 +554,8 @@ class Boss(Base):
             api.hit_boss(self.con, self.boss["id"], {})
         with self.assertRaises(api.Bad) as caught:
             api.hit_boss(self.con, self.boss["id"], {})
-        self.assertEqual(caught.exception.status, 409)
+        self.assertEqual(caught.exception.status, 404,
+                         "побеждённый босс уже уехал в архив")
 
     def test_boss_phases_are_chapters(self):
         api.add_chapter(self.con, self.boss["id"], {"name": "Фаза 1", "xp": 30})
@@ -584,11 +597,11 @@ class EditQuest(Base):
     def test_earned_experience_survives_an_edit(self):
         quest = self.make_main(stat="craft")
         api.add_chapter(self.con, quest["id"], {"name": "Шаг", "xp": 20})
+        api.add_chapter(self.con, quest["id"], {"name": "Ещё шаг", "xp": 10})
         api.toggle_chapter(self.con, self.state()["mains"][0]["chapters"][0]["id"], {})
         earned = self.xp_total()
 
-        # шаг закрыл квест, поэтому на шкале ещё и очки за бонус
-        points = xp.stat_points(20) + xp.stat_points(round(20 * api.CLOSE_BONUS_SHARE))
+        points = xp.stat_points(20)
 
         api.update_quest(self.con, quest["id"], {"stat": "soul", "title": "Переименовали"})
         self.assertEqual(self.xp_total(), earned)
@@ -661,14 +674,14 @@ class Deletion(Base):
     def test_delete_keeps_earned_xp(self):
         quest = self.make_main()
         api.add_chapter(self.con, quest["id"], {"name": "Шаг", "xp": 20})
+        api.add_chapter(self.con, quest["id"], {"name": "Ещё шаг", "xp": 10})
         chapter = self.state()["mains"][0]["chapters"][0]
         api.toggle_chapter(self.con, chapter["id"], {})
 
-        earned = 20 + round(20 * api.CLOSE_BONUS_SHARE)   # глава плюс бонус за закрытие
-        self.assertEqual(self.xp_total(), earned)
+        self.assertEqual(self.xp_total(), 20)
 
         api.delete_quest(self.con, quest["id"], {})
-        self.assertEqual(self.xp_total(), earned)
+        self.assertEqual(self.xp_total(), 20, "заработанный опыт остаётся")
 
 
 class Profile(Base):
@@ -736,6 +749,135 @@ class Profile(Base):
             api.update_profile(self.con, None, {"name": "я" * (api.MAX_NAME + 1)})
 
 
+class Archive(Base):
+    """Закрытые и удалённые квесты уходят в архив и возвращаются из него."""
+
+    def entry(self):
+        return self.state()["archive"][0]
+
+    def test_closed_main_lands_in_archive(self):
+        quest = self.make_main()
+        api.add_chapter(self.con, quest["id"], {"name": "Шаг", "xp": 40})
+        chapter = self.state()["mains"][0]["chapters"][0]
+        api.toggle_chapter(self.con, chapter["id"], {})
+
+        self.assertEqual(self.state()["mains"], [])
+        entry = self.entry()
+        self.assertEqual(entry["kind"], "main")
+        self.assertEqual(entry["reason"], "closed")
+        self.assertEqual(entry["xp"], 40)
+        self.assertEqual(entry["stepsDone"], 1)
+        self.assertEqual(entry["stepsTotal"], 1)
+
+        left = self.con.execute("SELECT count(*) AS n FROM quests").fetchone()["n"]
+        self.assertEqual(left, 0, "строка квеста уходит из базы в снимок")
+
+    def test_defeated_boss_lands_in_archive(self):
+        boss = self.make_boss(hp=1)
+        api.hit_boss(self.con, boss["id"], {})
+
+        self.assertEqual(self.state()["bosses"], [])
+        entry = self.entry()
+        self.assertEqual(entry["kind"], "boss")
+        self.assertEqual(entry["reason"], "closed")
+
+    def test_deleted_side_lands_in_archive(self):
+        side = self.make_side(xp=7)
+        api.delete_quest(self.con, side["id"], {})
+
+        entry = self.entry()
+        self.assertEqual(entry["kind"], "side")
+        self.assertEqual(entry["reason"], "deleted")
+        self.assertEqual(entry["xp"], 7)
+
+    def test_done_side_stays_out_of_archive(self):
+        side = self.make_side()
+        api.toggle_side(self.con, side["id"], {})
+        self.assertEqual(self.state()["archive"], [],
+                         "закрытая ежедневка остаётся на доске до конца периода")
+
+    def test_restore_returns_bonus_and_reopens_quest(self):
+        quest = self.make_main()
+        api.add_chapter(self.con, quest["id"], {"name": "Шаг", "xp": 40})
+        chapter = self.state()["mains"][0]["chapters"][0]
+        api.toggle_chapter(self.con, chapter["id"], {})
+        bonus = round(40 * api.CLOSE_BONUS_SHARE)
+        self.assertEqual(self.xp_total(), 40 + bonus)
+
+        api.restore_archived(self.con, self.entry()["id"], {})
+        self.assertEqual(len(self.state()["mains"]), 1)
+        self.assertEqual(self.xp_total(), 40, "бонус за закрытие вернулся")
+        self.assertTrue(self.state()["mains"][0]["chapters"][0]["done"],
+                        "сделанный шаг остаётся сделанным")
+        self.assertEqual(self.state()["archive"], [])
+
+    def test_restore_of_boss_revives_it(self):
+        boss = self.make_boss(hp=5, xp=30, hitXp=10)
+        for _ in range(5):
+            api.hit_boss(self.con, boss["id"], {})
+        self.assertEqual(self.xp_total(), 50 + 30)   # пять ударов по 10 и награда 30
+
+        api.restore_archived(self.con, self.entry()["id"], {})
+        revived = self.state()["bosses"][0]
+        self.assertEqual(revived["hpLeft"], 5, "босс возвращается живым")
+        self.assertEqual(self.xp_total(), 50, "награда за победу вернулась, удары остались")
+
+    def test_restore_of_deleted_side_returns_it_as_it_was(self):
+        side = self.make_side(title="Полить цветы", xp=7,
+                              repeat={"unit": "day", "every": 1})
+        api.toggle_side(self.con, side["id"], {})   # закрыт, серия 1
+        api.delete_quest(self.con, side["id"], {})
+
+        api.restore_archived(self.con, self.entry()["id"], {})
+        restored = self.state()["sides"][-1]
+        self.assertTrue(restored["done"], "сделанное дело не сбрасывают")
+        self.assertEqual(restored["streak"], 1, "серия возвращается")
+        self.assertEqual(restored["xp"], 7)
+        self.assertEqual(self.xp_total(), 7, "опыт за сделанное дело остаётся")
+
+    def test_deleted_main_with_substeps_restores_the_tree(self):
+        quest = self.make_main()
+        api.add_chapter(self.con, quest["id"], {"name": "Шаг", "xp": 40})
+        step = self.state()["mains"][0]["chapters"][0]
+        api.add_chapter(self.con, quest["id"],
+                        {"name": "Подшаг", "xp": 10, "parentId": step["id"]})
+        api.delete_quest(self.con, quest["id"], {})
+
+        api.restore_archived(self.con, self.entry()["id"], {})
+        step = self.state()["mains"][0]["chapters"][0]
+        self.assertEqual([child["name"] for child in step["children"]], ["Подшаг"])
+        self.assertEqual(step["children"][0]["xp"], 10)
+
+    def test_purge_erases_entry_forever(self):
+        side = self.make_side()
+        api.delete_quest(self.con, side["id"], {})
+        entry = self.entry()
+
+        api.purge_archive(self.con, entry["id"], {})
+        self.assertEqual(self.state()["archive"], [])
+        with self.assertRaises(api.Bad) as caught:
+            api.purge_archive(self.con, entry["id"], {})
+        self.assertEqual(caught.exception.status, 404)
+
+    def test_restore_of_unknown_entry_is_404(self):
+        with self.assertRaises(api.Bad) as caught:
+            api.restore_archived(self.con, 999, {})
+        self.assertEqual(caught.exception.status, 404)
+
+    def test_archive_routes_reach_actions(self):
+        side = self.make_side()
+        api.delete_quest(self.con, side["id"], {})
+        entry = self.entry()
+
+        api.dispatch(self.con, f"/api/archive/{entry['id']}/restore", {})
+        self.assertEqual(len(self.state()["sides"]), 1)
+
+        api.delete_quest(self.con, self.state()["sides"][0]["id"], {})
+        entry = self.entry()
+        api.dispatch(self.con, f"/api/archive/{entry['id']}/delete", {})
+        self.assertEqual(self.state()["archive"], [])
+
+
 class Migration(unittest.TestCase):
     """Старая база догоняет схему без переноса вручную."""
 
@@ -744,6 +886,13 @@ class Migration(unittest.TestCase):
         con.execute("ALTER TABLE profile DROP COLUMN notepad")   # откатываем к прежней схеме
         self.assertEqual(db.migrate(con), ["profile.notepad"])
         self.assertEqual(api.read_state(con)["profile"]["notepad"], "")
+        con.close()
+
+    def test_missing_archive_table_is_added(self):
+        con = db.memory(SCHEMA)
+        con.execute("DROP TABLE archive")
+        self.assertEqual(db.migrate(con), ["archive (таблица)"])
+        self.assertEqual(api.read_state(con)["archive"], [])
         con.close()
 
     def test_migration_is_idempotent(self):

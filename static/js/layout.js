@@ -18,7 +18,7 @@ const PLANS = [
     columns: [
       { share: 0.19, stack: ['hero', 'about'] },
       { share: 0.28, stack: ['mains', 'sides'] },
-      { share: 0.30, stack: ['bosses', 'log'] },
+      { share: 0.30, stack: ['bosses', 'log', 'archive'] },
       { share: 0.23, stack: ['clock', 'notepad'] },
     ],
   },
@@ -27,14 +27,14 @@ const PLANS = [
     columns: [
       { share: 0.24, stack: ['hero', 'clock', 'about'] },
       { share: 0.38, stack: ['mains', 'sides'] },
-      { share: 0.38, stack: ['bosses', 'log', 'notepad'] },
+      { share: 0.38, stack: ['bosses', 'log', 'archive', 'notepad'] },
     ],
   },
   {
     min: 0,                          // узкий стол: две колонки
     columns: [
       { share: 0.33, stack: ['hero', 'clock', 'about'] },
-      { share: 0.67, stack: ['mains', 'bosses', 'sides', 'log', 'notepad'] },
+      { share: 0.67, stack: ['mains', 'bosses', 'sides', 'log', 'archive', 'notepad'] },
     ],
   },
 ];

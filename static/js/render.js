@@ -468,6 +468,69 @@ function renderSides() {
 }
 
 /* ---------------------------------------------------------------
+   Архив
+   --------------------------------------------------------------- */
+
+/**
+ * Запись архива: закрытый (мейн или босс) или удалённый квест.
+ * Вернуть можно любую запись, стереть — тоже; на доске они места не занимают.
+ */
+function archiveRow(entry) {
+  const when = (entry.closedAt || entry.archivedAt || '').slice(0, 10);
+  const meta = [
+    entry.reason === 'closed' ? t('archive.closed', { at: when }) : t('archive.deleted', { at: when }),
+    statName(entry.stat),
+  ];
+  if (entry.stepsTotal) meta.push(t('archive.steps', { done: entry.stepsDone, total: entry.stepsTotal }));
+
+  const badge = el('span', 'chip',
+    t({ main: 'intro.main.name', side: 'intro.side.name', boss: 'intro.boss.name' }[entry.kind]));
+
+  const restore = el('button', {
+    type: 'button',
+    className: 'act small arch-btn',
+    title: t('archive.restore'),
+  }, '↩');
+  restore.setAttribute('aria-label', `${t('archive.restore')}: ${entry.title}`);
+  restore.addEventListener('click', () => act(() => api.restoreArchived(entry.id)));
+
+  const kill = el('button', {
+    type: 'button',
+    className: 'act small q-kill',
+    title: t('archive.purge'),
+  }, '×');
+  kill.setAttribute('aria-label', `${t('archive.purge')}: ${entry.title}`);
+  kill.addEventListener('click', () => {
+    if (confirm(t('archive.purge.confirm', { title: entry.title }))) {
+      act(() => api.purgeArchive(entry.id));
+    }
+  });
+
+  return el('div', 'side-line',
+    el('div', 'archived',
+      el('div', 'row',
+        el('span', 'archived-title',
+          badge,
+          el('span', 'name', entry.title),
+        ),
+        el('span', { className: 'num', style: 'font-size:10.5px' }, `+${entry.xp}`),
+      ),
+      el('span', 'meta', meta.join(' · ')),
+    ),
+    restore,
+    kill,
+  );
+}
+
+function renderArchive() {
+  const { archive } = api.state;
+  $('archive-count').textContent = String(archive.length);
+  $('archive').replaceChildren(archive.length
+    ? el('div', {}, ...archive.map(archiveRow))
+    : el('div', 'empty', t('archive.empty')));
+}
+
+/* ---------------------------------------------------------------
    Журнал
    --------------------------------------------------------------- */
 
@@ -594,5 +657,6 @@ export function renderAll() {
   renderMains();
   renderBosses();
   renderSides();
+  renderArchive();
   renderLog();
 }

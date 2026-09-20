@@ -74,6 +74,15 @@ const DICT = {
       'sides.empty': 'Пока пусто. Сайд-квест — мелкое дело или ежедневка.',
       'sides.streak': 'серия {n}',
 
+      'archive.head': 'Закрытые и удалённые',
+      'archive.empty': 'Пусто. Закрытые и удалённые квесты оседают здесь.',
+      'archive.closed': 'закрыт {at}',
+      'archive.deleted': 'удалён {at}',
+      'archive.restore': 'Вернуть на доску',
+      'archive.purge': 'Стереть из архива',
+      'archive.purge.confirm': 'Стереть «{title}» из архива навсегда? Вернуть будет нельзя.',
+      'archive.steps': 'шаги {done} / {total}',
+
       'boss.badge': 'БОСС',
       'boss.hp': 'Здоровье босса',
       'boss.hits': '{left} / {max} ударов',
@@ -207,8 +216,14 @@ const DICT = {
       quest_deleted: {
         log: 'Квест удалён · {title}',
         head: 'Квест удалён',
-        body: '«{title}» убран из журнала.',
+        body: '«{title}» уехал в архив.',
       },
+      quest_restored: {
+        log: 'Квест возвращён из архива · {title}',
+        head: 'Квест возвращён',
+        body: '«{title}» снова на доске.',
+      },
+      archive_purged: { log: 'Запись стёрта из архива · {title}' },
       rest_on: {
         log: 'Привал объявлен · серия заморожена',
         head: 'Привал',
@@ -287,6 +302,15 @@ const DICT = {
       'sides.head': 'Small things and dailies',
       'sides.empty': 'Empty so far. A side quest is a small task or a daily.',
       'sides.streak': 'streak {n}',
+
+      'archive.head': 'Closed and deleted',
+      'archive.empty': 'Empty so far. Closed and deleted quests settle here.',
+      'archive.closed': 'closed {at}',
+      'archive.deleted': 'deleted {at}',
+      'archive.restore': 'Back to the desk',
+      'archive.purge': 'Delete forever',
+      'archive.purge.confirm': 'Erase “{title}” from the archive for good? There is no way back.',
+      'archive.steps': 'steps {done} / {total}',
 
       'boss.badge': 'BOSS',
       'boss.hp': 'Boss health',
@@ -421,8 +445,14 @@ const DICT = {
       quest_deleted: {
         log: 'Quest deleted · {title}',
         head: 'Quest deleted',
-        body: '“{title}” is out of the log.',
+        body: '“{title}” moved to the archive.',
       },
+      quest_restored: {
+        log: 'Quest restored from the archive · {title}',
+        head: 'Quest restored',
+        body: '“{title}” is back on the desk.',
+      },
+      archive_purged: { log: 'Archive entry erased · {title}' },
       rest_on: {
         log: 'Rest declared · streak frozen',
         head: 'Rest',

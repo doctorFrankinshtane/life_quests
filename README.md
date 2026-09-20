@@ -46,7 +46,7 @@ runners are built in — nothing to install.
 
 ```
 run.py         entry point
-schema.sql     five tables
+schema.sql     six tables
 app/xp.py      experience: thresholds, levels, ranks
 app/api.py     actions and state assembly
 app/server.py  HTTP: static files plus JSON API
