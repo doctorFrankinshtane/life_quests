@@ -82,9 +82,21 @@
 .q-kill { flex: none; width: 15px; height: 15px; font-family: var(--font-mono); font-size: 10px; }
 
 .chap {
-  display: grid; grid-template-columns: 13px 1fr auto; gap: 7px;
+  display: grid; grid-template-columns: 13px 1fr auto auto; gap: 7px;
   align-items: start; width: 100%; padding: 2px 3px; text-align: left; font-size: 12px;
 }
+/* Подшаг сдвинут и подхвачен линией — видно, к какому шагу он относится. */
+.chap[data-depth="1"] {
+  margin-left: 13px; padding-left: 9px;
+  border-left: 1px dotted var(--dk);
+}
+.chap-line { display: flex; align-items: flex-start; gap: 4px; }
+.chap-line .chap { flex: 1; min-width: 0; }
+.sub-add, .sub-kill { flex: none; width: 19px; padding: 0; }
+/* Крестики проявляются на наведении: список шагов не должен пестрить. */
+.sub-kill { visibility: hidden; }
+.chap-line:hover .sub-kill, .sub-kill:focus-visible { visibility: visible; }
+.sub-form { margin: 3px 0 5px 22px; }
 .chap:hover { background: var(--sel-bg); color: var(--sel-fg); }
 .chap:hover .box { color: var(--sel-bg); }
 .chap[data-done="1"]:hover .box { color: var(--ink); }

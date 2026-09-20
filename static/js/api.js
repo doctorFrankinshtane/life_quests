@@ -59,6 +59,7 @@ export async function send(path, body = {}) {
 export const createQuest = (quest) => send('/api/quests', quest);
 export const addChapter = (questId, chapter) => send(`/api/quests/${questId}/chapters`, chapter);
 export const toggleChapter = (chapterId) => send(`/api/chapters/${chapterId}/toggle`);
+export const deleteChapter = (chapterId) => send(`/api/chapters/${chapterId}/delete`);
 export const toggleSide = (questId) => send(`/api/quests/${questId}/toggle`);
 export const hitBoss = (questId) => send(`/api/quests/${questId}/hit`);
 export const deleteQuest = (questId) => send(`/api/quests/${questId}/delete`);

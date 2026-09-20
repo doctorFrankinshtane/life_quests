@@ -234,6 +234,161 @@ class Chapters(Base):
         self.assertEqual(len(self.state()["mains"]), 1)
 
 
+class Substeps(Base):
+    """Второй уровень: у шага есть подшаги, и он закрывается сам."""
+
+    def setUp(self):
+        super().setUp()
+        self.quest = self.make_main(stat="craft")
+        api.add_chapter(self.con, self.quest["id"], {"name": "Получить загранпаспорт", "xp": 40})
+        self.step = self.steps()[0]
+
+    def steps(self):
+        mains = self.state()["mains"]
+        return mains[0]["chapters"] if mains else []
+
+    def step_done(self, chapter_id):
+        return bool(self.con.execute(
+            "SELECT done FROM chapters WHERE id = ?", (chapter_id,)).fetchone()["done"])
+
+    def add_sub(self, name, xp=10):
+        api.add_chapter(self.con, self.quest["id"],
+                        {"name": name, "xp": xp, "parentId": self.step["id"]})
+        return self.steps()[0]["children"][-1]
+
+    def test_substep_lands_inside_its_step(self):
+        self.add_sub("Забрать военный билет")
+        step = self.steps()[0]
+        self.assertEqual(len(step["children"]), 1)
+        self.assertEqual(step["children"][0]["name"], "Забрать военный билет")
+
+    def test_step_with_substeps_cannot_be_ticked_by_hand(self):
+        self.add_sub("Забрать военный билет")
+        with self.assertRaises(api.Bad) as caught:
+            api.toggle_chapter(self.con, self.step["id"], {})
+        self.assertEqual(caught.exception.status, 409)
+
+    def test_step_closes_itself_when_substeps_are_done(self):
+        first = self.add_sub("Забрать военный билет", 10)
+        second = self.add_sub("Подать заявление", 10)
+
+        api.toggle_chapter(self.con, first["id"], {})
+        self.assertFalse(self.steps()[0]["done"], "рано закрывать: остался подшаг")
+        self.assertEqual(self.xp_total(), 10)
+
+        api.toggle_chapter(self.con, second["id"], {})
+        self.assertTrue(self.step_done(self.step["id"]), "шаг должен закрыться сам")
+        # 10 + 10 за подшаги, 40 за шаг, четверть от 60 за закрытие квеста
+        self.assertEqual(self.xp_total(), 10 + 10 + 40 + round(60 * api.CLOSE_BONUS_SHARE))
+
+    def test_unticking_a_substep_reopens_the_step_and_the_quest(self):
+        first = self.add_sub("Забрать военный билет", 10)
+        second = self.add_sub("Подать заявление", 10)
+        api.toggle_chapter(self.con, first["id"], {})
+        api.toggle_chapter(self.con, second["id"], {})
+
+        api.toggle_chapter(self.con, second["id"], {})
+        self.assertFalse(self.step_done(self.step["id"]), "шаг должен снова открыться")
+        self.assertEqual(len(self.state()["mains"]), 1, "квест должен вернуться на доску")
+        self.assertEqual(self.xp_total(), 10)
+
+    def test_substep_of_a_substep_is_rejected(self):
+        sub = self.add_sub("Забрать военный билет")
+        with self.assertRaises(api.Bad) as caught:
+            api.add_chapter(self.con, self.quest["id"],
+                            {"name": "Найти папку", "parentId": sub["id"]})
+        self.assertEqual(caught.exception.status, 409)
+
+    def test_parent_from_another_quest_is_rejected(self):
+        other = self.make_main(title="Другая цель", stat="soul")
+        with self.assertRaises(api.Bad) as caught:
+            api.add_chapter(self.con, other["id"],
+                            {"name": "Чужой подшаг", "parentId": self.step["id"]})
+        self.assertEqual(caught.exception.status, 409)
+
+    def test_substep_added_to_a_closed_step_reopens_it(self):
+        api.toggle_chapter(self.con, self.step["id"], {})
+        self.assertEqual(self.state()["mains"], [], "квест закрылся единственным шагом")
+
+        api.add_chapter(self.con, self.quest["id"],
+                        {"name": "Забрать военный билет", "parentId": self.step["id"], "xp": 10})
+
+        self.assertFalse(self.step_done(self.step["id"]), "шаг снова открыт: работа не закончена")
+        self.assertEqual(len(self.state()["mains"]), 1)
+        self.assertEqual(self.xp_total(), 0, "опыт за шаг вернулся")
+
+    def test_deleting_the_quest_removes_substeps(self):
+        self.add_sub("Забрать военный билет")
+        api.delete_quest(self.con, self.quest["id"], {})
+        left = self.con.execute("SELECT count(*) AS n FROM chapters").fetchone()["n"]
+        self.assertEqual(left, 0)
+
+    def test_quest_progress_counts_only_top_level_steps(self):
+        self.add_sub("Забрать военный билет")
+        api.add_chapter(self.con, self.quest["id"], {"name": "Купить билеты", "xp": 20})
+
+        quest = self.state()["mains"][0]
+        self.assertEqual(len(quest["chapters"]), 2, "подшаг не должен быть отдельной строкой")
+        self.assertEqual(quest["xpTotal"], 40 + 10 + 20, "цена квеста считает и подшаги")
+
+    def test_unknown_parent_is_rejected(self):
+        with self.assertRaises(api.Bad) as caught:
+            api.add_chapter(self.con, self.quest["id"], {"name": "Шаг", "parentId": 9999})
+        self.assertEqual(caught.exception.status, 404)
+
+
+class DeleteStep(Base):
+    """Удаление шага: без него опечатка в подшаге навсегда держит шаг открытым."""
+
+    def setUp(self):
+        super().setUp()
+        self.quest = self.make_main(stat="craft")
+        api.add_chapter(self.con, self.quest["id"], {"name": "Получить загранпаспорт", "xp": 40})
+        self.step = self.state()["mains"][0]["chapters"][0]
+
+    def steps(self):
+        mains = self.state()["mains"]
+        return mains[0]["chapters"] if mains else []
+
+    def test_step_is_removed(self):
+        api.delete_chapter(self.con, self.step["id"], {})
+        self.assertEqual(self.steps(), [])
+
+    def test_substeps_go_with_the_step(self):
+        api.add_chapter(self.con, self.quest["id"],
+                        {"name": "Забрать военный билет", "parentId": self.step["id"]})
+        api.delete_chapter(self.con, self.step["id"], {})
+        self.assertEqual(self.con.execute("SELECT count(*) AS n FROM chapters").fetchone()["n"], 0)
+
+    def test_earned_experience_stays(self):
+        api.toggle_chapter(self.con, self.step["id"], {})
+        earned = self.xp_total()
+        api.delete_chapter(self.con, self.step["id"], {})
+        self.assertEqual(self.xp_total(), earned)
+
+    def test_removing_the_last_open_substep_closes_the_step(self):
+        done = api.add_chapter(self.con, self.quest["id"],
+                               {"name": "Забрать военный билет", "xp": 10,
+                                "parentId": self.step["id"]}) or None
+        api.add_chapter(self.con, self.quest["id"],
+                        {"name": "Опечатка", "xp": 10, "parentId": self.step["id"]})
+
+        children = self.steps()[0]["children"]
+        api.toggle_chapter(self.con, children[0]["id"], {})
+        self.assertFalse(self.steps()[0]["done"], "опечатка всё ещё держит шаг открытым")
+
+        api.delete_chapter(self.con, children[1]["id"], {})
+        closed = self.con.execute(
+            "SELECT done FROM chapters WHERE id = ?", (self.step["id"],)).fetchone()["done"]
+        self.assertEqual(closed, 1, "шаг должен закрыться сам")
+        self.assertEqual(self.state()["mains"], [], "и закрыть квест")
+
+    def test_unknown_step_is_404(self):
+        with self.assertRaises(api.Bad) as caught:
+            api.delete_chapter(self.con, 9999, {})
+        self.assertEqual(caught.exception.status, 404)
+
+
 class Sides(Base):
     def test_daily_streak_grows_and_shrinks(self):
         side = self.make_side(daily=True, xp=10)

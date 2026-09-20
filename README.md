@@ -34,7 +34,7 @@ Read from the environment; the code only holds defaults.
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -t .   # 86 tests: server
+python -m unittest discover -s tests -t .   # 101 tests: server
 node --test tests/test_layout.mjs           # 15 tests: window layout
 ```
 
@@ -71,11 +71,12 @@ That is what lets a language switch rewrite the whole journal after the fact.
 | -------------------------------- | --------------------------------- |
 | `GET  /api/state`                | the whole state                   |
 | `POST /api/quests`               | create a quest                    |
-| `POST /api/quests/{id}/chapters` | add a chapter or a boss phase     |
+| `POST /api/quests/{id}/chapters` | add a step, a substep or a boss phase |
 | `POST /api/quests/{id}/toggle`   | tick a side quest                 |
 | `POST /api/quests/{id}/hit`      | strike a boss                     |
 | `POST /api/quests/{id}/delete`   | delete a quest                    |
-| `POST /api/chapters/{id}/toggle` | tick a chapter                    |
+| `POST /api/chapters/{id}/toggle` | tick a step                       |
+| `POST /api/chapters/{id}/delete` | delete a step with its substeps   |
 | `POST /api/profile`              | name, skin, language, rest, notepad, layout |
 
 Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
@@ -83,9 +84,12 @@ Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
 
 ## The rules
 
-- **Fog.** A main quest with no chapters earns nothing and is drawn dashed.
+- **Fog.** A main quest with no steps earns nothing and is drawn dashed.
   Goals get abandoned because the first move is unclear, not because people
   are lazy.
+- **Steps nest one level.** A step can hold substeps, and then it is no longer
+  yours to tick: it closes itself once every substep is done, and pays its own
+  experience then. Otherwise you could claim a step whose work is unfinished.
 - **A boss is a run of strikes.** A hard goal has health; one strike is one
   real action, and no checkbox ends it.
 - **Rest.** A pause without punishment: the streak freezes, nothing burns

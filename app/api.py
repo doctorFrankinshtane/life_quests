@@ -27,6 +27,9 @@ MAX_NOTEPAD = 20_000
 # --- правила игры --------------------------------------------------------
 # Больше трёх мейн-квестов разом — это уже список дел, а не игра.
 MAX_ACTIVE_MAINS = 3
+# Глубина шагов: шаг и подшаг. Дальше дробить — значит, мейн-квест выбран
+# слишком крупно, и его пора разбивать на два.
+MAX_DEPTH = 2
 # Бонус за полностью закрытый мейн — доля от суммы его глав.
 CLOSE_BONUS_SHARE = 0.25
 # Значения по умолчанию, если поле не пришло из формы.
@@ -154,6 +157,84 @@ def days_left(due_date, today=None):
     return (date.fromisoformat(due_date) - (today or date.today())).days
 
 
+def fetch_chapter(con, chapter_id):
+    row = con.execute("SELECT * FROM chapters WHERE id = ?", (chapter_id,)).fetchone()
+    if row is None:
+        raise Bad("Шага с таким номером нет", 404)
+    return row
+
+
+def children_of(con, chapter_id):
+    return con.execute(
+        "SELECT * FROM chapters WHERE parent_id = ? ORDER BY sort, id", (chapter_id,)
+    ).fetchall()
+
+
+def depth_of(con, chapter_row):
+    """Уровень шага: 1 — обычный шаг, 2 — подшаг."""
+    depth = 1
+    parent_id = chapter_row["parent_id"]
+    while parent_id is not None:
+        depth += 1
+        parent_id = con.execute(
+            "SELECT parent_id FROM chapters WHERE id = ?", (parent_id,)
+        ).fetchone()["parent_id"]
+    return depth
+
+
+def close_bonus(con, quest_id):
+    """Бонус за полностью закрытый мейн — доля от суммы всех его шагов."""
+    total = con.execute(
+        "SELECT coalesce(sum(xp), 0) AS n FROM chapters WHERE quest_id = ?", (quest_id,)
+    ).fetchone()["n"]
+    return round(total * CLOSE_BONUS_SHARE)
+
+
+def reopen_quest(con, quest):
+    """Возвращает квест на доску и снимает бонус, выданный за его закрытие."""
+    if not quest["done"]:
+        return
+    take_xp(con, close_bonus(con, quest["id"]), quest["stat"])
+    con.execute("UPDATE quests SET done = 0, done_at = NULL WHERE id = ?", (quest["id"],))
+
+
+def close_upwards(con, chapter_row, quest):
+    """Закрывает родителя, если все его подшаги готовы. Идёт вверх до квеста."""
+    flash = []
+    parent_id = chapter_row["parent_id"]
+
+    while parent_id is not None:
+        parent = fetch_chapter(con, parent_id)
+        left = con.execute(
+            "SELECT count(*) AS n FROM chapters WHERE parent_id = ? AND done = 0", (parent_id,)
+        ).fetchone()["n"]
+        if left or parent["done"]:
+            return flash
+
+        con.execute(
+            "UPDATE chapters SET done = 1, done_at = datetime('now', 'localtime') WHERE id = ?",
+            (parent_id,),
+        )
+        flash += grant_xp(con, parent["xp"], quest["stat"])
+        log(con, "step_closed", name=parent["name"], xp=parent["xp"])
+        parent_id = parent["parent_id"]
+
+    return flash
+
+
+def open_upwards(con, chapter_row, quest):
+    """Снимает отметку с родителей: подшаг открыт — значит, шаг не сделан."""
+    parent_id = chapter_row["parent_id"]
+
+    while parent_id is not None:
+        parent = fetch_chapter(con, parent_id)
+        if not parent["done"]:
+            return
+        con.execute("UPDATE chapters SET done = 0, done_at = NULL WHERE id = ?", (parent_id,))
+        take_xp(con, parent["xp"], quest["stat"])
+        parent_id = parent["parent_id"]
+
+
 def fetch_quest(con, quest_id, kind=None):
     sql = "SELECT * FROM quests WHERE id = ?"
     args = [quest_id]
@@ -170,14 +251,27 @@ def read_state(con, today=None):
     profile = con.execute("SELECT * FROM profile WHERE id = 1").fetchone()
     stats = con.execute("SELECT key, value FROM stats ORDER BY sort").fetchall()
 
-    chapters = {}
-    for row in con.execute("SELECT * FROM chapters ORDER BY sort, id"):
-        chapters.setdefault(row["quest_id"], []).append({
+    # Шаги собираются в дерево: верхний уровень квеста и подшаги внутри.
+    chapters, nodes, weight = {}, {}, {}
+    rows = con.execute("SELECT * FROM chapters ORDER BY sort, id").fetchall()
+
+    for row in rows:
+        nodes[row["id"]] = {
             "id": row["id"],
             "name": row["name"],
             "xp": row["xp"],
             "done": bool(row["done"]),
-        })
+            "children": [],
+        }
+        weight[row["quest_id"]] = weight.get(row["quest_id"], 0) + row["xp"]
+
+    for row in rows:
+        node = nodes[row["id"]]
+        parent = nodes.get(row["parent_id"])
+        if parent is None:
+            chapters.setdefault(row["quest_id"], []).append(node)
+        else:
+            parent["children"].append(node)
 
     mains, sides, bosses = [], [], []
     for quest in con.execute("SELECT * FROM quests WHERE done = 0 ORDER BY sort, id"):
@@ -196,7 +290,7 @@ def read_state(con, today=None):
                 "why": quest["why"],
                 "fog": not own,                      # мейн без глав — в тумане
                 "chapters": own,
-                "xpTotal": sum(chapter["xp"] for chapter in own),
+                "xpTotal": weight.get(quest["id"], 0),
                 "doneCount": sum(1 for chapter in own if chapter["done"]),
             })
         elif quest["kind"] == "side":
@@ -329,38 +423,78 @@ def create_quest(con, _target, body):
 def add_chapter(con, quest_id, body):
     quest = fetch_quest(con, quest_id)
     if quest["kind"] == "side":
-        raise Bad("У сайд-квеста не бывает глав", 409)
+        raise Bad("У сайд-квеста не бывает шагов", 409)
+
+    # Новый шаг у закрытого квеста означает, что работа не закончена:
+    # квест возвращается на доску, бонус за закрытие снимается.
     if quest["done"]:
-        raise Bad("Квест уже закрыт", 409)
+        reopen_quest(con, quest)
+        quest = fetch_quest(con, quest_id)
 
     name = want_text(body, "name", limit=MAX_TITLE)
     amount = want_int(body, "xp", low=1, high=MAX_CHAPTER_XP, default=DEFAULT_CHAPTER_XP)
+
+    parent = None
+    parent_id = body.get("parentId")
+    if parent_id is not None:
+        parent = fetch_chapter(con, want_int(body, "parentId", low=1, high=2**31))
+        if parent["quest_id"] != quest_id:
+            raise Bad("Этот шаг принадлежит другому квесту", 409)
+        if depth_of(con, parent) >= MAX_DEPTH:
+            raise Bad(
+                "Глубже подшага дробить нельзя. Если шагов слишком много, "
+                "квест взят слишком крупно — разбейте его на два.",
+                409,
+            )
+        parent_id = parent["id"]
+
+    # Подшаг у закрытого шага снова его открывает: работа опять не закончена.
+    # Откат идёт до вставки, чтобы бонус за закрытие снялся ровно тот, что выдан.
+    if parent is not None and parent["done"]:
+        reopen_quest(con, fetch_quest(con, quest_id))
+        con.execute("UPDATE chapters SET done = 0, done_at = NULL WHERE id = ?", (parent["id"],))
+        take_xp(con, parent["xp"], quest["stat"])
+        open_upwards(con, parent, quest)
+
     sort = con.execute(
-        "SELECT coalesce(max(sort), 0) + 1 AS n FROM chapters WHERE quest_id = ?", (quest_id,)
+        """SELECT coalesce(max(sort), 0) + 1 AS n FROM chapters
+            WHERE quest_id = ? AND parent_id IS ?""",
+        (quest_id, parent_id),
     ).fetchone()["n"]
 
     con.execute(
-        "INSERT INTO chapters (quest_id, name, xp, sort) VALUES (?, ?, ?, ?)",
-        (quest_id, name, amount, sort),
+        "INSERT INTO chapters (quest_id, parent_id, name, xp, sort) VALUES (?, ?, ?, ?, ?)",
+        (quest_id, parent_id, name, amount, sort),
     )
-    log(con, "phase_added" if quest["kind"] == "boss" else "chapter_added",
-        title=quest["title"], name=name, xp=amount)
 
-    if sort == 1 and quest["kind"] == "main":
-        return [note("fog_lifted", title=quest["title"])]
+    if parent is None:
+        log(con, "phase_added" if quest["kind"] == "boss" else "chapter_added",
+            title=quest["title"], name=name, xp=amount)
+        if sort == 1 and quest["kind"] == "main":
+            return [note("fog_lifted", title=quest["title"])]
+        return []
+
+    log(con, "substep_added", parent=parent["name"], name=name, xp=amount)
     return []
 
 
 def toggle_chapter(con, chapter_id, _body):
-    chapter = con.execute("SELECT * FROM chapters WHERE id = ?", (chapter_id,)).fetchone()
-    if chapter is None:
-        raise Bad("Главы с таким номером нет", 404)
+    chapter = fetch_chapter(con, chapter_id)
     quest = fetch_quest(con, chapter["quest_id"])
 
+    # Шаг с подшагами закрывается сам — иначе можно получить опыт за работу,
+    # которая внутри него ещё не сделана.
+    if children_of(con, chapter_id):
+        raise Bad(
+            "У этого шага есть подшаги. Он закроется сам, когда все они будут отмечены.",
+            409,
+        )
+
     if chapter["done"]:
+        reopen_quest(con, quest)          # бонус за закрытие тоже возвращается
         con.execute("UPDATE chapters SET done = 0, done_at = NULL WHERE id = ?", (chapter_id,))
-        con.execute("UPDATE quests SET done = 0, done_at = NULL WHERE id = ?", (quest["id"],))
         take_xp(con, chapter["xp"], quest["stat"])
+        open_upwards(con, chapter, quest)
         log(con, "chapter_undone", name=chapter["name"], xp=chapter["xp"])
         return []
 
@@ -369,31 +503,58 @@ def toggle_chapter(con, chapter_id, _body):
         (chapter_id,),
     )
     flash = grant_xp(con, chapter["xp"], quest["stat"])
+    flash += close_upwards(con, chapter, quest)
 
-    left = con.execute(
-        "SELECT count(*) AS n FROM chapters WHERE quest_id = ? AND done = 0", (quest["id"],)
-    ).fetchone()["n"]
-
+    left = steps_left(con, quest["id"])
     if left:
         log(con, "chapter_done", name=chapter["name"], xp=chapter["xp"], left=left)
         return flash
 
-    # Последняя глава закрывает мейн-квест. У босса решает здоровье, а не фазы.
-    if quest["kind"] == "main":
-        total = con.execute(
-            "SELECT coalesce(sum(xp), 0) AS n FROM chapters WHERE quest_id = ?", (quest["id"],)
-        ).fetchone()["n"]
-        bonus = round(total * CLOSE_BONUS_SHARE)
-        flash += grant_xp(con, bonus, quest["stat"])
-        con.execute(
-            "UPDATE quests SET done = 1, done_at = datetime('now', 'localtime') WHERE id = ?",
-            (quest["id"],),
-        )
-        log(con, "main_closed", title=quest["title"], bonus=bonus)
-        flash.append(note("main_closed", title=quest["title"], bonus=bonus))
-    else:
+    if quest["kind"] != "main":
+        # У босса решает здоровье, а не фазы.
         log(con, "phases_done", title=quest["title"], name=chapter["name"], xp=chapter["xp"])
+        return flash
 
+    return flash + settle_main(con, quest)
+
+
+def steps_left(con, quest_id):
+    return con.execute(
+        "SELECT count(*) AS n FROM chapters WHERE quest_id = ? AND done = 0", (quest_id,)
+    ).fetchone()["n"]
+
+
+def settle_main(con, quest):
+    """Закрывает мейн-квест, если все его шаги отмечены."""
+    total = con.execute(
+        "SELECT count(*) AS n FROM chapters WHERE quest_id = ?", (quest["id"],)
+    ).fetchone()["n"]
+    if quest["done"] or not total or steps_left(con, quest["id"]):
+        return []
+
+    bonus = close_bonus(con, quest["id"])
+    flash = grant_xp(con, bonus, quest["stat"])
+    con.execute(
+        "UPDATE quests SET done = 1, done_at = datetime('now', 'localtime') WHERE id = ?",
+        (quest["id"],),
+    )
+    log(con, "main_closed", title=quest["title"], bonus=bonus)
+    flash.append(note("main_closed", title=quest["title"], bonus=bonus))
+    return flash
+
+
+def delete_chapter(con, chapter_id, _body):
+    """Убирает шаг вместе с его подшагами. Заработанный опыт остаётся."""
+    chapter = fetch_chapter(con, chapter_id)
+    quest = fetch_quest(con, chapter["quest_id"])
+
+    con.execute("DELETE FROM chapters WHERE id = ?", (chapter_id,))
+    log(con, "step_deleted", name=chapter["name"])
+
+    # Родитель мог доукомплектоваться: лишний подшаг больше не держит его открытым.
+    flash = close_upwards(con, chapter, quest)
+    if quest["kind"] == "main":
+        flash += settle_main(con, fetch_quest(con, quest["id"]))
     return flash
 
 
@@ -514,6 +675,7 @@ ROUTES = (
     (r"^/api/quests/(\d+)/toggle$", toggle_side),
     (r"^/api/quests/(\d+)/delete$", delete_quest),
     (r"^/api/chapters/(\d+)/toggle$", toggle_chapter),
+    (r"^/api/chapters/(\d+)/delete$", delete_chapter),
     (r"^/api/profile$", update_profile),
 )
 

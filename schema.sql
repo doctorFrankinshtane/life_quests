@@ -63,17 +63,23 @@ CREATE TABLE quests (
 );
 CREATE INDEX quests_kind ON quests (kind, done, sort, id);
 
--- Главы мейн-квеста и фазы босса. Шаг, выполнимый за один заход.
+-- Шаги мейн-квеста и фазы босса. Шаг, выполнимый за один заход.
+-- parent_id даёт второй уровень: у шага могут быть подшаги. Шаг с подшагами
+-- вручную не отмечается — он закрывается сам, когда закрыты все подшаги.
 CREATE TABLE chapters (
-  id       INTEGER PRIMARY KEY,
-  quest_id INTEGER NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
-  name     TEXT    NOT NULL CHECK (length(trim(name)) > 0),
-  xp       INTEGER NOT NULL CHECK (xp > 0),
-  done     INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
-  sort     INTEGER NOT NULL DEFAULT 0,
-  done_at  TEXT
+  id        INTEGER PRIMARY KEY,
+  quest_id  INTEGER NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
+  parent_id INTEGER          REFERENCES chapters(id) ON DELETE CASCADE,
+  name      TEXT    NOT NULL CHECK (length(trim(name)) > 0),
+  xp        INTEGER NOT NULL CHECK (xp > 0),
+  done      INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+  sort      INTEGER NOT NULL DEFAULT 0,
+  done_at   TEXT,
+
+  CHECK (parent_id IS NULL OR parent_id <> id)
 );
 CREATE INDEX chapters_quest ON chapters (quest_id, sort, id);
+CREATE INDEX chapters_parent ON chapters (parent_id, sort, id);
 
 -- Журнал системы. code — что случилось, params — подставляемые значения.
 CREATE TABLE events (

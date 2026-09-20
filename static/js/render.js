@@ -2,7 +2,7 @@
 
 import * as api from './api.js';
 import { eventLine, eventNote, plural, rankName, statName, t } from './i18n.js';
-import { failure, flash } from './notify.js';
+import { failure, flash, toast } from './notify.js';
 import { openWindow } from './desktop.js';
 
 const $ = (id) => document.getElementById(id);
@@ -78,19 +78,93 @@ function renderHero() {
    Мейн-квесты
    --------------------------------------------------------------- */
 
-function chapterRow(chapter) {
+/**
+ * Какой шаг сейчас показывает поле для подшага. Хранится вне разметки,
+ * потому что отрисовка пересобирает окно целиком после каждого действия.
+ */
+let openSubstepFor = null;
+
+function chapterRow(chapter, quest, depth = 0) {
+  const nested = chapter.children.length > 0;
+  const doneChildren = chapter.children.filter((child) => child.done).length;
+
   const row = el('button', {
     type: 'button',
     className: 'chap',
-    dataset: { done: chapter.done ? '1' : '0' },
+    dataset: { done: chapter.done ? '1' : '0', depth: String(depth) },
+    title: nested ? t('step.auto') : '',
   },
     el('span', 'box', '✓'),
     el('span', 'name', chapter.name),
+    nested
+      ? el('span', 'xp', `${doneChildren}/${chapter.children.length}`)
+      : null,
     el('span', 'xp', `+${chapter.xp}`),
   );
   row.setAttribute('aria-pressed', String(chapter.done));
-  row.addEventListener('click', () => act(() => api.toggleChapter(chapter.id)));
-  return row;
+
+  row.addEventListener('click', () => {
+    // Шаг с подшагами закрывается сам — объясняем это на месте, без запроса.
+    if (nested) return toast(t('step.auto.head'), t('step.auto'));
+    return act(() => api.toggleChapter(chapter.id));
+  });
+
+  const kill = el('button', {
+    type: 'button',
+    className: 'act small sub-kill',
+    title: t('step.delete'),
+  }, '×');
+  kill.setAttribute('aria-label', `${t('step.delete')}: ${chapter.name}`);
+  kill.addEventListener('click', () => {
+    if (!confirm(t('step.delete.confirm', { name: chapter.name }))) return;
+    if (openSubstepFor === chapter.id) openSubstepFor = null;
+    act(() => api.deleteChapter(chapter.id));
+  });
+
+  // Подшаг подшага не заводим: правило глубины живёт и на сервере.
+  if (depth > 0) return [el('div', 'chap-line', row, kill)];
+
+  const add = el('button', {
+    type: 'button',
+    className: 'act small sub-add',
+    title: t('step.add.sub'),
+  }, '+');
+  add.setAttribute('aria-label', `${t('step.add.sub')}: ${chapter.name}`);
+  add.addEventListener('click', () => {
+    openSubstepFor = openSubstepFor === chapter.id ? null : chapter.id;
+    renderMains();
+  });
+
+  const rows = [el('div', 'chap-line', row, add, kill)];
+  for (const child of chapter.children) rows.push(...chapterRow(child, quest, depth + 1));
+  if (openSubstepFor === chapter.id) rows.push(substepForm(quest, chapter));
+
+  return rows;
+}
+
+function substepForm(quest, parent) {
+  const input = el('input', {
+    type: 'text',
+    maxLength: 120,
+    required: true,
+    placeholder: t('step.sub.hint'),
+    'aria-label': t('step.add.sub'),
+  });
+
+  const form = el('form', 'add-chapter sub-form',
+    input,
+    el('button', { className: 'act small', type: 'submit' }, '+'));
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = input.value.trim();
+    if (!name) return;
+    input.value = '';
+    act(() => api.addChapter(quest.id, { name, parentId: parent.id }));
+  });
+
+  queueMicrotask(() => input.focus());
+  return form;
 }
 
 function chapterForm(quest) {
@@ -160,7 +234,7 @@ function mainCard(quest) {
           `${quest.doneCount} / ${quest.chapters.length}`),
       ),
       el('div', 'bar', el('i', { style: `width:${share * 100}%` })),
-      el('div', {}, ...quest.chapters.map(chapterRow)),
+      el('div', {}, ...quest.chapters.flatMap((chapter) => chapterRow(chapter, quest))),
     );
   }
 

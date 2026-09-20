@@ -39,6 +39,7 @@ def create(con, schema_sql, hero_name):
 # ALTER-ом, чтобы старая база не требовала переноса вручную.
 LATER_COLUMNS = (
     ("profile", "notepad", "TEXT NOT NULL DEFAULT ''"),
+    ("chapters", "parent_id", "INTEGER REFERENCES chapters(id) ON DELETE CASCADE"),
 )
 
 
