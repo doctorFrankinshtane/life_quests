@@ -189,3 +189,15 @@
   width: 100%; padding: 1px 3px; font-size: 14px; font-weight: 700;
   background: var(--well); border: var(--win-border); box-shadow: var(--sink);
 }
+
+/* ---------------------------------------------------------------
+   БЛОКНОТ — один лист, сохраняется сам
+   --------------------------------------------------------------- */
+.notepad {
+  flex: 1 1 auto; min-height: 140px; resize: none;
+  padding: 6px 7px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+  background: var(--well); color: var(--ink);
+  border: var(--win-border); box-shadow: var(--sink);
+}
+.notepad::placeholder { color: var(--dk); }
+.notepad-state { min-height: 13px; text-transform: none; letter-spacing: 0; }

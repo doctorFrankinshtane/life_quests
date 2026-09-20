@@ -3,6 +3,7 @@
 import * as api from './api.js';
 import { applyPlaces, initDesktop, openWindow, renderMenuList, renderWindowMenu } from './desktop.js';
 import { applyLanguage, langName, locale, setLang, skinName, t } from './i18n.js';
+import { initNotepad, showNotepad } from './notepad.js';
 import { failure, flash } from './notify.js';
 import { initForms, renderAll, renderStatOptions } from './render.js';
 
@@ -48,6 +49,7 @@ function showLang(code) {
   renderWindowMenu();
   renderStatOptions();
   renderAll();
+  showNotepad();
 }
 
 async function pickLang(code) {
@@ -132,6 +134,7 @@ async function start() {
 
   initForms();
   initIntro();
+  initNotepad();
   tick();
   setInterval(tick, CLOCK_TICK_MS);
 
@@ -149,6 +152,7 @@ async function start() {
   applyPlaces(api.state.profile.places);
   renderStatOptions();
   renderAll();
+  showNotepad();
 
   // Новому человеку сначала объясняем, что это такое.
   if (!api.state.profile.introSeen) {

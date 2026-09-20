@@ -134,7 +134,7 @@
    Порог совпадает со STACK_QUERY в js/desktop.js.
    --------------------------------------------------------------- */
 @media (max-width: 760px) {
-  .desktop { height: auto; padding: 12px 8px 20px; }
+  .desktop { height: auto; padding: 12px 10px 20px; }
   .tag-os { position: static; display: inline-block; margin-bottom: 10px; }
   .win {
     position: static !important; width: auto !important; height: auto !important;

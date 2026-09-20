@@ -23,10 +23,9 @@ button { padding: 0; border: 0; background: none; cursor: pointer; }
 h1, h2, h3 { margin: 0; font-size: inherit; font-weight: 700; }
 p { margin: 0; }
 
-.shell {
-  max-width: 1600px; margin: 0 auto;
-  padding-inline: clamp(8px, 1vw, 16px); padding-block: 0 24px;
-}
+/* Стол занимает всю ширину: на ультрашироком мониторе окна расходятся
+   по четырём колонкам, а не жмутся в середину. */
+.shell { width: 100%; padding-inline: 0; padding-block: 0; }
 
 .num, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 

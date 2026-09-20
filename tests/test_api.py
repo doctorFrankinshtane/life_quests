@@ -346,6 +346,30 @@ class Profile(Base):
         api.update_profile(self.con, None, {"places": places})
         self.assertEqual(self.state()["profile"]["places"], places)
 
+    def test_notepad_round_trip(self):
+        self.assertEqual(self.state()["profile"]["notepad"], "")
+        api.update_profile(self.con, None, {"notepad": "купить гантели"})
+        self.assertEqual(self.state()["profile"]["notepad"], "купить гантели")
+
+    def test_notepad_keeps_line_breaks(self):
+        sheet = "купить гантели\nидея: таймер помидорками"
+        api.update_profile(self.con, None, {"notepad": sheet})
+        self.assertEqual(self.state()["profile"]["notepad"], sheet)
+
+    def test_notepad_can_be_emptied(self):
+        api.update_profile(self.con, None, {"notepad": "черновик"})
+        api.update_profile(self.con, None, {"notepad": ""})
+        self.assertEqual(self.state()["profile"]["notepad"], "")
+
+    def test_notepad_stays_out_of_the_journal(self):
+        before = len(self.state()["events"])
+        api.update_profile(self.con, None, {"notepad": "тишина"})
+        self.assertEqual(len(self.state()["events"]), before)
+
+    def test_oversized_notepad_is_rejected(self):
+        with self.assertRaises(api.Bad):
+            api.update_profile(self.con, None, {"notepad": "я" * (api.MAX_NOTEPAD + 1)})
+
     def test_places_must_be_object(self):
         with self.assertRaises(api.Bad):
             api.update_profile(self.con, None, {"places": "[]"})
@@ -365,6 +389,23 @@ class Profile(Base):
     def test_too_long_name_is_rejected(self):
         with self.assertRaises(api.Bad):
             api.update_profile(self.con, None, {"name": "я" * (api.MAX_NAME + 1)})
+
+
+class Migration(unittest.TestCase):
+    """Старая база догоняет схему без переноса вручную."""
+
+    def test_missing_column_is_added(self):
+        con = db.memory(SCHEMA)
+        con.execute("ALTER TABLE profile DROP COLUMN notepad")   # откатываем к прежней схеме
+        self.assertEqual(db.migrate(con), ["profile.notepad"])
+        self.assertEqual(api.read_state(con)["profile"]["notepad"], "")
+        con.close()
+
+    def test_migration_is_idempotent(self):
+        con = db.memory(SCHEMA)
+        self.assertEqual(db.migrate(con), [])
+        self.assertEqual(db.migrate(con), [])
+        con.close()
 
 
 class Dispatch(Base):

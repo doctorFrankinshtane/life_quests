@@ -35,6 +35,25 @@ def create(con, schema_sql, hero_name):
     return con
 
 
+# Колонки, появившиеся после первых выпусков. Каждая добавляется отдельным
+# ALTER-ом, чтобы старая база не требовала переноса вручную.
+LATER_COLUMNS = (
+    ("profile", "notepad", "TEXT NOT NULL DEFAULT ''"),
+)
+
+
+def migrate(con):
+    """Доводит старую базу до текущей схемы. Возвращает добавленные колонки."""
+    added = []
+    with con:
+        for table, column, definition in LATER_COLUMNS:
+            have = {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
+            if column not in have:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+                added.append(f"{table}.{column}")
+    return added
+
+
 def open_or_create(config):
     """Открывает базу, создавая её при первом запуске."""
     fresh = not config.db_path.exists()
@@ -43,6 +62,9 @@ def open_or_create(config):
         config.db_path.parent.mkdir(parents=True, exist_ok=True)
         create(con, config.schema_path.read_text(encoding="utf-8"), config.hero_name)
         con.execute("PRAGMA journal_mode = WAL")
+    else:
+        for column in migrate(con):
+            print(f"База обновлена: добавлена колонка {column}")
     return con, fresh
 
 

@@ -22,6 +22,7 @@ MAX_WHY = 300
 MAX_CHAPTER_XP = 500
 MAX_HP = 999
 MAX_EVENTS = 40
+MAX_NOTEPAD = 20_000
 
 # --- правила игры --------------------------------------------------------
 # Больше трёх мейн-квестов разом — это уже список дел, а не игра.
@@ -245,6 +246,7 @@ def read_state(con, today=None):
             "skin": profile["skin"],
             "lang": profile["lang"],
             "introSeen": bool(profile["intro_seen"]),
+            "notepad": profile["notepad"],
             "places": json.loads(profile["places"]),
         },
         "stats": [dict(row) for row in stats],
@@ -482,6 +484,12 @@ def update_profile(con, _target, body):
         code = "rest_on" if resting else "rest_off"
         log(con, code, streak=streak)
         flash.append(note(code, streak=streak))
+
+    # Блокнот пишется на каждой паузе в наборе, поэтому в журнал не идёт:
+    # иначе он забьёт собой всё остальное.
+    if "notepad" in body:
+        text = want_text(body, "notepad", limit=MAX_NOTEPAD, required=False)
+        con.execute("UPDATE profile SET notepad = ? WHERE id = 1", (text,))
 
     if "places" in body:
         places = body["places"]

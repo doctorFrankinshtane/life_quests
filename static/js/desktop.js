@@ -176,21 +176,21 @@ export function applyPlaces(saved) {
 
   // Рассчитанную раскладку не сохраняем: пока человек не двигал окна,
   // она должна пересобираться под каждый новый размер экрана.
-  put(known ? saved : defaultPlaces(desktop.clientWidth, desktop.clientHeight));
+  put(known ? saved : defaultPlaces(windows, desktop.clientWidth, desktop.clientHeight));
 }
 
 function onResize() {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     if (arrangedByHand || stacked()) return;
-    put(defaultPlaces(desktop.clientWidth, desktop.clientHeight));
+    put(defaultPlaces(windows, desktop.clientWidth, desktop.clientHeight));
   }, RESIZE_DELAY_MS);
 }
 
 /** Возвращает окна на места, рассчитанные под текущий экран. */
 export function resetPlaces() {
   arrangedByHand = false;
-  if (!stacked()) put(defaultPlaces(desktop.clientWidth, desktop.clientHeight));
+  if (!stacked()) put(defaultPlaces(windows, desktop.clientWidth, desktop.clientHeight));
   clearTimeout(saveTimer);
   savePlaces({});                 // сервер забывает ручную раскладку
 }

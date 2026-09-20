@@ -23,6 +23,7 @@ CREATE TABLE profile (
   skin       TEXT    NOT NULL DEFAULT 'win98',
   lang       TEXT    NOT NULL DEFAULT 'ru',
   intro_seen INTEGER NOT NULL DEFAULT 0 CHECK (intro_seen IN (0, 1)),
+  notepad    TEXT    NOT NULL DEFAULT '',    -- блокнот: один свободный лист
   places     TEXT    NOT NULL DEFAULT '{}'   -- раскладка окон, JSON
 );
 

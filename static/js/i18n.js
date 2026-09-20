@@ -39,6 +39,7 @@ const DICT = {
       'win.log': 'Журнал системы',
       'win.new': 'Новый квест',
       'win.about': 'О программе',
+      'win.notepad': 'Блокнот',
       'win.intro': 'Добро пожаловать',
 
       'hero.xp': 'Опыт',
@@ -49,6 +50,9 @@ const DICT = {
       'hero.resting': 'Привал · серия заморожена',
       'hero.level': 'ур.',
       'hero.rename': 'Изменить имя героя',
+      'notepad.hint': 'мысли, ссылки, что угодно — сохраняется само',
+      'notepad.saved': 'сохранено {at}',
+      'notepad.saving': 'сохраняю…',
 
       'mains.badge': 'МЕЙН',
       'mains.count': 'активных {active} · лимит {limit}',
@@ -218,6 +222,7 @@ const DICT = {
       'win.log': 'System log',
       'win.new': 'New quest',
       'win.about': 'About',
+      'win.notepad': 'Notepad',
       'win.intro': 'Welcome',
 
       'hero.xp': 'Experience',
@@ -228,6 +233,9 @@ const DICT = {
       'hero.resting': 'Resting · streak frozen',
       'hero.level': 'lvl',
       'hero.rename': 'Change the hero name',
+      'notepad.hint': 'thoughts, links, anything — saves itself',
+      'notepad.saved': 'saved at {at}',
+      'notepad.saving': 'saving…',
 
       'mains.badge': 'MAIN',
       'mains.count': 'active {active} · limit {limit}',

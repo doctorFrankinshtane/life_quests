@@ -34,11 +34,13 @@ Read from the environment; the code only holds defaults.
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -t .
+python -m unittest discover -s tests -t .   # 86 tests: server
+node --test tests/test_layout.mjs           # 15 tests: window layout
 ```
 
-79 tests: experience maths, actions against the database, and a live server
-on a free port.
+Experience maths, actions against the database, a live server on a free port,
+and the window arrangement from a laptop up to an ultrawide monitor. Both
+runners are built in — nothing to install.
 
 ## How it works
 
@@ -49,7 +51,7 @@ app/xp.py      experience: thresholds, levels, ranks
 app/api.py     actions and state assembly
 app/server.py  HTTP: static files plus JSON API
 static/        index.html, css/, js/
-tests/         unittest
+tests/         unittest, plus node --test for the layout
 ```
 
 The server does the counting. The browser sends an intent ("tick this
@@ -74,7 +76,7 @@ That is what lets a language switch rewrite the whole journal after the fact.
 | `POST /api/quests/{id}/hit`      | strike a boss                     |
 | `POST /api/quests/{id}/delete`   | delete a quest                    |
 | `POST /api/chapters/{id}/toggle` | tick a chapter                    |
-| `POST /api/profile`              | name, skin, language, rest, layout |
+| `POST /api/profile`              | name, skin, language, rest, notepad, layout |
 
 Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
 `{ "error": "text" }` with 400, 404 or 409.
@@ -103,8 +105,12 @@ Two languages, Russian and English, switched from the menu and stored with
 your progress.
 
 Windows drag by the title bar and resize from the bottom-right corner. Until
-you move them by hand, the arrangement is recomputed for the screen size.
+you move them by hand, the arrangement is recomputed for the screen: two
+columns on a laptop, three on a normal monitor, four past 1800 pixels, so an
+ultrawide screen gets wider windows instead of a small desk in the middle.
 Below 760 pixels the desktop stacks and dragging turns off.
+
+There is a notepad too — one free sheet that saves itself.
 
 ## Licence
 
