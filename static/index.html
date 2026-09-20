@@ -1,10 +1,19 @@
 <!doctype html>
-<html lang="ru" data-skin="win98">
+<html lang="ru" data-skin="win98" class="booting">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Life Quests</title>
   <meta name="description" content="Цели как квесты: мейн-квесты, сайд-квесты, боссы, опыт и уровни.">
+  <script>
+    // Облик ставится до первой отрисовки, иначе виден чужой фон стола.
+    // Источник правды — база; здесь только подсказка для первого кадра.
+    try {
+      var skin = localStorage.getItem('lq-skin');
+      if (skin) document.documentElement.dataset.skin = skin;
+    } catch (error) { /* приватный режим — переживём */ }
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap">
@@ -12,6 +21,13 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/chrome.css">
   <link rel="stylesheet" href="css/components.css">
+
+  <!-- Пока не пришло состояние, разметка держит прошлый облик, русский текст
+       и старые координаты окон. Прячем её до первой отрисовки: правило стоит
+       здесь, а не в css/, чтобы применяться сразу, без ожидания файла. -->
+  <style>
+    html.booting body > * { visibility: hidden; }
+  </style>
 </head>
 <body>
 
@@ -326,6 +342,12 @@
 </div>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
+
+<noscript>
+  <p style="padding:16px; font:14px Tahoma, sans-serif; visibility:visible">
+    Life Quests работает на JavaScript — включите его, чтобы открыть стол.
+  </p>
+</noscript>
 
 <script type="module" src="js/app.js"></script>
 </body>

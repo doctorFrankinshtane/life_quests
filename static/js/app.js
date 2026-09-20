@@ -8,6 +8,15 @@ import { failure, flash } from './notify.js';
 import { initForms, renderAll, renderStatOptions } from './render.js';
 
 const CLOCK_TICK_MS = 1000;
+const BOOT_LIMIT_MS = 4000;
+
+/** Снимает завесу загрузки. Вызывается один раз, чем бы ни кончился запуск. */
+function reveal() {
+  document.documentElement.classList.remove('booting');
+}
+
+// Если запуск где-то застрял, стол всё равно должен появиться.
+setTimeout(reveal, BOOT_LIMIT_MS);
 
 const pad = (value) => String(value).padStart(2, '0');
 
@@ -27,6 +36,9 @@ function tick() {
 
 function showSkin(skin) {
   document.documentElement.dataset.skin = skin;
+  try {
+    localStorage.setItem('lq-skin', skin);   // подсказка для следующего запуска
+  } catch (error) { /* приватный режим — переживём */ }
   renderMenuList('menu-skins', api.state.limits.skins, skin, skinName, pickSkin);
 }
 
@@ -140,24 +152,26 @@ async function start() {
 
   try {
     await api.pull();
+
+    showLang(api.state.profile.lang);
+    showSkin(api.state.profile.skin);
+    applyPlaces(api.state.profile.places);
+    renderStatOptions();
+    renderAll();
+    showNotepad();
+
+    // Новому человеку сначала объясняем, что это такое.
+    if (!api.state.profile.introSeen) {
+      document.getElementById('intro-name-input').value = api.state.profile.name;
+      openWindow('intro');
+    }
   } catch (error) {
     setLang('ru');
     applyLanguage();
     failure(error);
-    return;
-  }
-
-  showLang(api.state.profile.lang);
-  showSkin(api.state.profile.skin);
-  applyPlaces(api.state.profile.places);
-  renderStatOptions();
-  renderAll();
-  showNotepad();
-
-  // Новому человеку сначала объясняем, что это такое.
-  if (!api.state.profile.introSeen) {
-    document.getElementById('intro-name-input').value = api.state.profile.name;
-    openWindow('intro');
+  } finally {
+    // Показываем стол в любом случае: с ошибкой её хотя бы видно.
+    reveal();
   }
 }
 
