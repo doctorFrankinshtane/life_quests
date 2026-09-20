@@ -1,0 +1,20 @@
+# база и её журналы
+*.db
+*.db-wal
+*.db-shm
+
+# рабочие материалы, не для репозитория
+refs/
+docs/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# редакторы и система
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

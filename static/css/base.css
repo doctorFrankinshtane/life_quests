@@ -1,0 +1,61 @@
+/* База: сброс, типографика, мелочи, общие для всех обликов. */
+
+* { box-sizing: border-box; }
+
+html, body { height: auto; }
+
+body {
+  margin: 0;
+  background: var(--desk-bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--sel-bg); color: var(--sel-fg); }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { padding: 0; border: 0; background: none; cursor: pointer; }
+:focus-visible { outline: 1px dotted var(--ink); outline-offset: -3px; }
+
+h1, h2, h3 { margin: 0; font-size: inherit; font-weight: 700; }
+p { margin: 0; }
+
+.shell {
+  max-width: 1600px; margin: 0 auto;
+  padding-inline: clamp(8px, 1vw, 16px); padding-block: 0 24px;
+}
+
+.num, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.lab {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-dim);
+}
+.dim { color: var(--ink-dim); }
+.warn { color: var(--warn); }
+
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+
+.rule { height: 2px; box-shadow: inset 0 1px 0 var(--dk), inset 0 -1px 0 var(--lt); }
+
+.inv {
+  display: inline-block; padding: 2px 8px;
+  background: var(--sel-bg); color: var(--sel-fg); font-weight: 700;
+}
+.inv.big { padding: 4px 10px 6px; font-size: clamp(20px, 3.6vw, 30px); line-height: 1.05; }
+
+.empty {
+  padding: 14px 12px; font-size: 12px; color: var(--ink-dim);
+  border: 1px dashed var(--dk); text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

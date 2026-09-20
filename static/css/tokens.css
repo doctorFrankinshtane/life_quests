@@ -1,0 +1,95 @@
+/* Облики интерфейса.
+   Скин меняет только переменные: краски, фаски, шапку и шрифт.
+   Ни один макет не знает, какой облик сейчас включён. */
+
+/* ---------------------------------------------------------------
+   ОКНА 98 — по умолчанию
+   --------------------------------------------------------------- */
+:root {
+  --desk-bg: #008080;
+  --face:    #c0c0c0;
+  --face-2:  #bfbfbf;
+  --well:    #ffffff;
+  --ink:     #000000;
+  --ink-dim: #3c3c3c;
+  --lt:      #ffffff;
+  --lt2:     #dfdfdf;
+  --dk:      #808080;
+  --dk2:     #0a0a0a;
+  --sel-bg:  #000080;
+  --sel-fg:  #ffffff;
+  --accent:  #000080;
+  --warn:    #a01010;
+
+  --font:      Tahoma, "Segoe UI", Verdana, Geneva, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, ui-monospace, monospace;
+
+  /* Базовый кегль тянется вместе с экраном: 11px на телефоне, 14px на большом
+     мониторе. Системный интерфейс не должен превращаться в плакат, поэтому
+     вилка узкая. */
+  --fs: clamp(11px, 0.32vw + 10px, 14px);
+
+  /* Высота стола: занимает экран под строкой меню, но не растёт бесконечно. */
+  --desk-h: clamp(520px, calc(100dvh - 30px), 1080px);
+
+  /* Фаска одним свойством: выпуклая для кнопок и окон, вдавленная для полей. */
+  --raise: inset -1px -1px 0 var(--dk2), inset 1px 1px 0 var(--lt),
+           inset -2px -2px 0 var(--dk),  inset 2px 2px 0 var(--lt2);
+  --sink:  inset 1px 1px 0 var(--dk),    inset -1px -1px 0 var(--lt),
+           inset 2px 2px 0 var(--dk2),   inset -2px -2px 0 var(--lt2);
+  --drop: 0 0 0 0 transparent;
+  --win-border: 0;
+  --win-pad: 3px;
+
+  --title-h: 20px;
+  --title-bg:     linear-gradient(90deg, #000080 0%, #1084d0 100%);
+  --title-bg-off: linear-gradient(90deg, #808080 0%, #b5b5b5 100%);
+  --title-fg: #ffffff;
+  --title-weight: 700;
+  --title-justify: flex-start;
+  --title-pad: 0 2px 0 4px;
+  --t-bg: transparent;
+
+  --btn-w: 16px;
+  --btn-h: 14px;
+  --btn-order: 0;
+}
+
+/* ---------------------------------------------------------------
+   ПЛАТИНА — Mac OS 8
+   --------------------------------------------------------------- */
+:root[data-skin="platinum"] {
+  --desk-bg: repeating-conic-gradient(#7e91a4 0% 25%, #76889a 0% 50%) 0 0 / 4px 4px;
+  --face:    #dddddd;
+  --face-2:  #d2d2d2;
+  --well:    #ffffff;
+  --ink:     #0c0c0c;
+  --ink-dim: #4a4a4a;
+  --lt:      #ffffff;
+  --lt2:     #efefef;
+  --dk:      #949494;
+  --dk2:     #5b5b5b;
+  --sel-bg:  #3a64a8;
+  --sel-fg:  #ffffff;
+  --accent:  #3a64a8;
+  --warn:    #9b2c1f;
+
+  --font: Geneva, Verdana, "Lucida Grande", Tahoma, sans-serif;
+
+  --raise: inset -1px -1px 0 var(--dk), inset 1px 1px 0 var(--lt);
+  --sink:  inset 1px 1px 0 var(--dk),   inset -1px -1px 0 var(--lt);
+  --drop: 2px 2px 5px rgba(0, 0, 0, .34);
+  --win-border: 1px solid var(--dk2);
+
+  --title-h: 21px;
+  --title-bg:     repeating-linear-gradient(180deg, #f0f0f0 0 1px, #c2c2c2 1px 2px);
+  --title-bg-off: repeating-linear-gradient(180deg, #e6e6e6 0 1px, #dcdcdc 1px 2px);
+  --title-fg: #0c0c0c;
+  --title-justify: center;
+  --title-pad: 0 5px;
+  --t-bg: var(--face);
+
+  --btn-w: 13px;
+  --btn-h: 13px;
+  --btn-order: -1;   /* у Mac OS кнопка закрытия слева */
+}

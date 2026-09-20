@@ -1,0 +1,191 @@
+/* Содержимое окон: полосы, флажки, карточки квестов, формы. */
+
+/* ---------------------------------------------------------------
+   ПОЛОСЫ
+   --------------------------------------------------------------- */
+.bar {
+  position: relative; height: 16px; padding: 2px; overflow: hidden;
+  background: var(--well); border: var(--win-border); box-shadow: var(--sink);
+}
+.bar i {
+  position: absolute; left: 2px; top: 2px; bottom: 2px; display: block;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 9px, transparent 9px 12px);
+  transition: width .4s steps(10, end);
+}
+.bar.thin { height: 10px; padding: 1px; }
+.bar.thin i {
+  left: 1px; top: 1px; bottom: 1px;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 5px, transparent 5px 7px);
+}
+.bar.hatch i {
+  background: repeating-linear-gradient(45deg, var(--warn) 0 3px, transparent 3px 7px);
+}
+
+/* ---------------------------------------------------------------
+   ФЛАЖОК, МЕТКА, КНОПКА
+   --------------------------------------------------------------- */
+.box {
+  display: grid; place-items: center; flex: none;
+  width: 13px; height: 13px; margin-top: 1px;
+  background: var(--well); border: var(--win-border); box-shadow: var(--sink);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; line-height: 1;
+  color: transparent;
+}
+[data-done="1"] .box { color: var(--ink); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  display: inline-flex; align-items: center; padding: 1px 7px;
+  font-size: 10.5px; white-space: nowrap;
+  background: var(--face-2); box-shadow: var(--raise);
+}
+.chip.fill { background: var(--sel-bg); color: var(--sel-fg); box-shadow: none; }
+.chip.late { background: var(--warn); color: #fff; box-shadow: none; }
+
+.act {
+  min-height: 23px; padding: 5px 14px;
+  font-size: 11.5px; font-weight: 700;
+  background: var(--face); color: var(--ink);
+  border: var(--win-border); box-shadow: var(--raise);
+}
+.act:active { box-shadow: var(--sink); }
+.act:disabled { color: var(--dk); text-shadow: 1px 1px 0 var(--lt); cursor: default; }
+.act[data-on="1"] { background: var(--face-2); box-shadow: var(--sink); }
+.act.small { min-height: 19px; padding: 2px 8px; font-size: 11px; }
+
+/* ---------------------------------------------------------------
+   ЛИСТ ГЕРОЯ
+   --------------------------------------------------------------- */
+.sigil {
+  display: grid; place-items: center; flex: none; width: 44px; height: 44px;
+  background: var(--sel-bg); color: var(--sel-fg); box-shadow: var(--raise);
+  font-family: var(--font-mono); font-size: 21px; font-weight: 700;
+}
+.stat {
+  display: grid; grid-template-columns: 60px 1fr 26px; gap: 7px;
+  align-items: center; font-size: 11.5px;
+}
+.stat span:last-child { text-align: right; font-family: var(--font-mono); }
+.streak-n { font-family: var(--font-mono); font-size: 25px; font-weight: 700; line-height: 1; }
+
+/* ---------------------------------------------------------------
+   КАРТОЧКА КВЕСТА
+   --------------------------------------------------------------- */
+.quest {
+  display: flex; flex-direction: column; gap: 8px; padding: 9px;
+  background: var(--well); border: var(--win-border); box-shadow: var(--sink);
+}
+.quest + .quest { margin-top: 8px; }
+.q-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.q-name { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.q-why { font-size: 11.5px; color: var(--ink-dim); }
+.q-kill { flex: none; width: 15px; height: 15px; font-family: var(--font-mono); font-size: 10px; }
+
+.chap {
+  display: grid; grid-template-columns: 13px 1fr auto; gap: 7px;
+  align-items: start; width: 100%; padding: 2px 3px; text-align: left; font-size: 12px;
+}
+.chap:hover { background: var(--sel-bg); color: var(--sel-fg); }
+.chap:hover .box { color: var(--sel-bg); }
+.chap[data-done="1"]:hover .box { color: var(--ink); }
+.chap[data-done="1"] .name { opacity: .65; text-decoration: line-through; }
+.chap .xp { font-family: var(--font-mono); font-size: 10.5px; opacity: .8; }
+
+.fog-note { padding: 7px 9px; border: 1px dashed var(--dk); font-size: 11.5px; }
+
+.add-chapter { display: flex; gap: 5px; }
+.add-chapter input {
+  flex: 1; min-width: 0; padding: 3px 6px; font-size: 11.5px;
+  background: var(--well); border: var(--win-border); box-shadow: var(--sink);
+}
+
+/* Сайд-квесты живут в белом колодце общим списком. */
+.side {
+  display: grid; grid-template-columns: 13px 1fr auto auto; gap: 7px;
+  align-items: start; width: 100%; padding: 4px 3px; text-align: left; font-size: 12px;
+}
+.side:hover { background: var(--sel-bg); color: var(--sel-fg); }
+.side:hover .box { color: var(--sel-bg); }
+.side[data-done="1"]:hover .box { color: var(--ink); }
+.side[data-done="1"] .name { opacity: .65; text-decoration: line-through; }
+.side .meta { font-size: 10.5px; color: var(--ink-dim); }
+.side:hover .meta { color: var(--sel-fg); }
+
+/* ---------------------------------------------------------------
+   БОСС
+   --------------------------------------------------------------- */
+.boss + .boss { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--dk); }
+.phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 5px; }
+.phase {
+  width: 100%; padding: 5px 7px; text-align: left; font-size: 10.5px;
+  background: var(--face-2); box-shadow: var(--raise);
+}
+.phase b { display: block; font-size: 11.5px; }
+.phase[data-state="done"] { background: var(--sel-bg); color: var(--sel-fg); box-shadow: var(--sink); }
+.phase[data-state="locked"] { opacity: .55; box-shadow: var(--sink); }
+
+/* ---------------------------------------------------------------
+   ЖУРНАЛ
+   --------------------------------------------------------------- */
+.log {
+  max-height: clamp(120px, 18vh, 260px); overflow: auto;
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5;
+}
+.log div { white-space: pre-wrap; word-break: break-word; }
+.log .cur::after { content: "█"; animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------------------------------------------------------------
+   ФОРМЫ
+   --------------------------------------------------------------- */
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field input, .field select {
+  width: 100%; padding: 4px 6px; font-size: 12px;
+  background: var(--well); border: var(--win-border); box-shadow: var(--sink);
+}
+.field input::placeholder { color: var(--dk); }
+.field-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.field-row .field { flex: 1; min-width: 120px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
+
+/* ---------------------------------------------------------------
+   ИНТРО — первое окно для нового человека.
+   Типы квестов подписаны теми же метками, которые он увидит
+   на карточках, чтобы узнавать их без перевода в уме.
+   --------------------------------------------------------------- */
+.intro-win .body { gap: 10px; }
+.intro-head { font-size: clamp(17px, 2.6vw, 22px); line-height: 1.15; }
+.intro-lead { font-size: 12.5px; max-width: 62ch; }
+
+.intro-name { max-width: 260px; }
+
+.intro-list {
+  display: grid; grid-template-columns: auto 1fr; gap: 8px 10px; margin: 0;
+  padding: 10px; background: var(--well); box-shadow: var(--sink);
+}
+.intro-list dt { white-space: nowrap; }
+.intro-list dd { margin: 0; font-size: 12.5px; }
+
+.intro-facts { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.intro-facts li { font-size: 12px; color: var(--ink-dim); max-width: 64ch; }
+
+.intro-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.intro-actions .act:first-child { background: var(--sel-bg); color: var(--sel-fg); }
+
+@media (max-width: 520px) {
+  .intro-list { grid-template-columns: 1fr; gap: 3px; }
+  .intro-list dd { margin-bottom: 8px; }
+}
+
+/* Имя героя: кнопка, которая по щелчку становится полем. */
+.hero-id { min-width: 0; }
+.hero-name {
+  display: block; max-width: 100%; padding: 1px 3px; margin-left: -3px;
+  font-size: 14px; font-weight: 700; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hero-name:hover { background: var(--sel-bg); color: var(--sel-fg); }
+.hero-name-input {
+  width: 100%; padding: 1px 3px; font-size: 14px; font-weight: 700;
+  background: var(--well); border: var(--win-border); box-shadow: var(--sink);
+}

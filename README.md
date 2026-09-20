@@ -1,0 +1,111 @@
+# Life Quests
+
+Goals as quests. Main quests split into chapters, side quests and dailies,
+bosses with a health bar, experience and levels — in the interface of a
+nineties operating system, where you drag the windows around.
+
+![Life Quests](screenshot.png)
+
+No dependencies: Python standard library on the server, plain ES modules in
+the browser. Nothing to install, nothing to build.
+
+## Run
+
+```bash
+python run.py                        # http://127.0.0.1:8000
+python run.py --demo                 # load demo quests first
+python run.py --demo --demo-lang en  # demo in English
+```
+
+Python 3.11+. The database is created on first run next to `run.py` and
+starts empty.
+
+## Settings
+
+Read from the environment; the code only holds defaults.
+
+| Variable            | Default            | Sets                     |
+| ------------------- | ------------------ | ------------------------ |
+| `LIFE_QUESTS_DB`    | `./life_quests.db` | database file            |
+| `LIFE_QUESTS_HOST`  | `127.0.0.1`        | address                  |
+| `LIFE_QUESTS_PORT`  | `8000`             | port                     |
+| `LIFE_QUESTS_HERO`  | `Герой`            | name in a fresh profile  |
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -t .
+```
+
+79 tests: experience maths, actions against the database, and a live server
+on a free port.
+
+## How it works
+
+```
+run.py         entry point
+schema.sql     five tables
+app/xp.py      experience: thresholds, levels, ranks
+app/api.py     actions and state assembly
+app/server.py  HTTP: static files plus JSON API
+static/        index.html, css/, js/
+tests/         unittest
+```
+
+The server does the counting. The browser sends an intent ("tick this
+chapter"), gets the whole new state back and draws it — there is no second
+source of truth.
+
+The level is never stored. It is derived from total experience, so unticking
+a chapter returns exactly the state that came before it.
+
+The database holds no human sentences either. Log lines and notifications are
+stored as codes with parameters, and the wording lives in `static/js/i18n.js`.
+That is what lets a language switch rewrite the whole journal after the fact.
+
+### API
+
+| Request                          | Does                              |
+| -------------------------------- | --------------------------------- |
+| `GET  /api/state`                | the whole state                   |
+| `POST /api/quests`               | create a quest                    |
+| `POST /api/quests/{id}/chapters` | add a chapter or a boss phase     |
+| `POST /api/quests/{id}/toggle`   | tick a side quest                 |
+| `POST /api/quests/{id}/hit`      | strike a boss                     |
+| `POST /api/quests/{id}/delete`   | delete a quest                    |
+| `POST /api/chapters/{id}/toggle` | tick a chapter                    |
+| `POST /api/profile`              | name, skin, language, rest, layout |
+
+Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
+`{ "error": "text" }` with 400, 404 or 409.
+
+## The rules
+
+- **Fog.** A main quest with no chapters earns nothing and is drawn dashed.
+  Goals get abandoned because the first move is unclear, not because people
+  are lazy.
+- **A boss is a run of strikes.** A hard goal has health; one strike is one
+  real action, and no checkbox ends it.
+- **Rest.** A pause without punishment: the streak freezes, nothing burns
+  down. Punishing a sick week drives people away for good.
+- **Five attributes.** The level speaks of volume, the bars of balance.
+- **Three main quests at a time.** Twenty goals feel like debt.
+- **Experience is computed.** A main quest pays the sum of its chapters plus
+  a quarter for closing it — never a number picked by hand.
+
+## Interface
+
+Two skins: **Windows 98** and **Platinum** (Mac OS 8). A skin only swaps CSS
+variables — colours, bevels, title bar, font — so a third one costs a block
+in `static/css/tokens.css`.
+
+Two languages, Russian and English, switched from the menu and stored with
+your progress.
+
+Windows drag by the title bar and resize from the bottom-right corner. Until
+you move them by hand, the arrangement is recomputed for the screen size.
+Below 760 pixels the desktop stacks and dragging turns off.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).

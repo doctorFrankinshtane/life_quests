@@ -1,0 +1,160 @@
+/* Системная обвязка: строка меню, стол, окна. */
+
+/* ---------------------------------------------------------------
+   СТРОКА МЕНЮ
+   --------------------------------------------------------------- */
+.menubar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 900;
+  display: flex; align-items: stretch; height: 24px;
+  background: var(--face); color: var(--ink);
+  border: var(--win-border); box-shadow: var(--raise);
+  font-size: 11.5px;
+}
+.menubar .os {
+  display: flex; align-items: center; margin: 2px; padding: 0 9px;
+  font-weight: 700; letter-spacing: .02em;
+  background: var(--face); box-shadow: var(--raise);
+}
+.menubar .spacer { flex: 1; }
+.menubar .clock-mini {
+  display: flex; align-items: center; margin: 2px; padding: 0 10px;
+  box-shadow: var(--sink); font-family: var(--font-mono); font-size: 11px;
+}
+
+.menu { position: relative; display: flex; }
+.menu > button { display: flex; align-items: center; padding: 0 10px; }
+.menu > button:hover,
+.menu[data-open="1"] > button { background: var(--sel-bg); color: var(--sel-fg); }
+
+.menu ul {
+  display: none; position: absolute; left: 0; top: 100%; z-index: 10;
+  min-width: 236px; margin: 0; padding: 2px; list-style: none;
+  background: var(--face); color: var(--ink);
+  border: var(--win-border); box-shadow: var(--raise), var(--drop);
+}
+.menu[data-open="1"] ul { display: block; }
+.menu li button {
+  display: flex; width: 100%; gap: 12px; padding: 3px 10px;
+  align-items: center; justify-content: space-between; text-align: left;
+}
+.menu li button:hover { background: var(--sel-bg); color: var(--sel-fg); }
+.menu li button[disabled] { opacity: .45; cursor: default; }
+.menu li button[disabled]:hover { background: none; color: inherit; }
+.menu .sep {
+  height: 2px; margin: 3px 1px;
+  box-shadow: inset 0 1px 0 var(--dk), inset 0 -1px 0 var(--lt);
+}
+
+/* ---------------------------------------------------------------
+   СТОЛ
+   --------------------------------------------------------------- */
+.desktop {
+  position: relative; height: var(--desk-h);
+  background: var(--desk-bg);
+  border: var(--win-border); border-top: 0;
+  overflow: hidden;
+}
+.tag-os {
+  position: absolute; left: 8px; top: 8px; z-index: 5;
+  padding: 3px 9px; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  background: var(--face); color: var(--ink); box-shadow: var(--raise);
+}
+
+/* ---------------------------------------------------------------
+   ОКНО
+   --------------------------------------------------------------- */
+.win {
+  position: absolute; z-index: 10;
+  display: flex; flex-direction: column;
+  /* Окно не вылезает за стол: если содержимого много, прокручивается тело. */
+  max-width: calc(100% - 12px); max-height: calc(100% - 8px);
+  padding: var(--win-pad);
+  background: var(--face); color: var(--ink);
+  border: var(--win-border); box-shadow: var(--raise), var(--drop);
+}
+.win[hidden] { display: none !important; }
+
+.title {
+  display: flex; flex: none; align-items: center; gap: 3px;
+  height: var(--title-h); padding: var(--title-pad);
+  background: var(--title-bg-off); color: var(--title-fg);
+  font-size: 11.5px; font-weight: var(--title-weight); letter-spacing: .02em;
+  cursor: grab; user-select: none;
+}
+.win.focus .title { background: var(--title-bg); }
+.title:active { cursor: grabbing; }
+.title .t {
+  flex: 1; min-width: 0; padding: 0 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: var(--title-justify); background: var(--t-bg);
+}
+:root[data-skin="platinum"] .title .t { flex: 0 1 auto; margin: 0 auto; }
+
+.title .btn {
+  display: grid; place-items: center; flex: none;
+  width: var(--btn-w); height: var(--btn-h); order: var(--btn-order);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; line-height: 1;
+  background: var(--face); color: var(--ink); box-shadow: var(--raise);
+}
+.title .btn:active { box-shadow: var(--sink); }
+:root[data-skin="platinum"] .title .btn:last-child { order: 1; }
+
+.body {
+  display: flex; flex-direction: column; gap: 10px; min-height: 0;
+  padding: 10px; overflow: auto; background: var(--face);
+}
+.body.well { margin: 0 1px 1px; background: var(--well); box-shadow: var(--sink); }
+
+.grip {
+  position: absolute; right: 1px; bottom: 1px; width: 15px; height: 15px;
+  cursor: nwse-resize;
+  background: repeating-linear-gradient(135deg, var(--dk) 0 1px, transparent 1px 3px);
+}
+
+/* ---------------------------------------------------------------
+   УВЕДОМЛЕНИЯ
+   --------------------------------------------------------------- */
+.toasts {
+  position: fixed; right: 14px; z-index: 950;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(312px, calc(100vw - 28px));
+}
+.toast {
+  padding: var(--win-pad);
+  background: var(--face); border: var(--win-border);
+  box-shadow: var(--raise), var(--drop);
+}
+.toast .title { cursor: default; }
+.toast p { padding: 9px 10px; font-size: 11.5px; }
+.toast[data-kind="error"] .title { background: var(--warn); color: #fff; }
+
+/* ---------------------------------------------------------------
+   УЗКИЙ ЭКРАН — стол разбирается в стопку, перетаскивание выключается.
+   Порог совпадает со STACK_QUERY в js/desktop.js.
+   --------------------------------------------------------------- */
+@media (max-width: 760px) {
+  .desktop { height: auto; padding: 12px 8px 20px; }
+  .tag-os { position: static; display: inline-block; margin-bottom: 10px; }
+  .win {
+    position: static !important; width: auto !important; height: auto !important;
+    max-width: none; max-height: none; margin-bottom: 12px;
+  }
+  .win .body { max-height: 60vh; }
+  .win .grip { display: none; }
+  .title { cursor: default; }
+
+  .menubar { font-size: 11px; }
+  .menubar .os { padding: 0 6px; }
+  .menu > button { padding: 0 7px; }
+  .menu ul { min-width: min(260px, calc(100vw - 24px)); }
+  .menubar .clock-mini { display: none; }
+
+  .toasts { right: 8px; left: 8px; width: auto; }
+}
+
+/* Совсем узкие телефоны: журнал и списки не должны толкать страницу вбок. */
+@media (max-width: 420px) {
+  .menubar .os { display: none; }
+  .win .body { padding: 8px; }
+}

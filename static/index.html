@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ru" data-skin="win98">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Life Quests</title>
+  <meta name="description" content="Цели как квесты: мейн-квесты, сайд-квесты, боссы, опыт и уровни.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/chrome.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+<div class="shell">
+
+  <div class="menubar">
+    <span class="os">LIFE QUESTS</span>
+
+    <div class="menu" data-menu>
+      <button type="button" data-i18n="menu.quest">Квест</button>
+      <ul>
+        <li><button type="button" data-cmd="new-quest" data-i18n="menu.quest.new">Новый квест…</button></li>
+        <li><button type="button" data-cmd="intro" data-i18n="menu.quest.intro">Что это такое</button></li>
+        <li class="sep"></li>
+        <li><button type="button" data-cmd="rest" data-i18n="menu.quest.rest">Объявить привал</button></li>
+      </ul>
+    </div>
+
+    <div class="menu" data-menu>
+      <button type="button" data-i18n="menu.windows">Окна</button>
+      <ul id="menu-windows"></ul>
+    </div>
+
+    <div class="menu" data-menu>
+      <button type="button" data-i18n="menu.skin">Облик</button>
+      <ul id="menu-skins"></ul>
+    </div>
+
+    <div class="menu" data-menu>
+      <button type="button" data-i18n="menu.lang">Язык</button>
+      <ul id="menu-langs"></ul>
+    </div>
+
+    <span class="spacer"></span>
+    <span class="clock-mini" id="clock-mini">--:--:--</span>
+  </div>
+
+  <div class="desktop" id="desktop">
+    <div class="tag-os">LIFE QUESTS 0.1</div>
+
+    <!-- ИНТРО -->
+    <section class="win intro-win" data-win="intro" data-i18n-title="win.intro" data-title="Добро пожаловать" hidden
+             style="left:300px; top:90px; width:520px; z-index:50">
+      <header class="title">
+        <span class="t">Добро пожаловать</span>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body">
+        <h2 class="intro-head" data-i18n="intro.head">Цели как квесты</h2>
+        <p class="intro-lead" data-i18n="intro.lead"></p>
+
+        <div class="field intro-name">
+          <label class="lab" for="intro-name-input" data-i18n="intro.name"></label>
+          <input id="intro-name-input" type="text" maxlength="40" autocomplete="off">
+        </div>
+
+        <span class="lab" data-i18n="intro.types"></span>
+        <dl class="intro-list">
+          <dt><span class="chip fill" data-i18n="intro.main.name"></span></dt>
+          <dd data-i18n="intro.main.text"></dd>
+          <dt><span class="chip" data-i18n="intro.side.name"></span></dt>
+          <dd data-i18n="intro.side.text"></dd>
+          <dt><span class="chip late" data-i18n="intro.boss.name"></span></dt>
+          <dd data-i18n="intro.boss.text"></dd>
+        </dl>
+
+        <div class="rule"></div>
+
+        <ul class="intro-facts">
+          <li data-i18n="intro.xp"></li>
+          <li data-i18n="intro.rest"></li>
+          <li data-i18n="intro.tip"></li>
+        </ul>
+
+        <div class="intro-actions">
+          <button class="act" type="button" id="intro-start" data-i18n="intro.start"></button>
+          <button class="act" type="button" id="intro-later" data-i18n="intro.later"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЧАСЫ -->
+    <section class="win" data-win="clock" data-i18n-title="win.clock" data-title="Часы"
+             style="left:886px; top:24px; width:276px; z-index:12">
+      <header class="title">
+        <span class="t">Часы</span>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body" style="gap:3px">
+        <div id="clock-date">—</div>
+        <div class="num" id="clock-time" style="font-size:19px; font-weight:700">--:--:--</div>
+        <div class="lab"><span data-i18n="hero.streak"></span>: <span id="clock-streak">0</span></div>
+      </div>
+    </section>
+
+    <!-- ЛИСТ ГЕРОЯ -->
+    <section class="win" data-win="hero" data-i18n-title="win.hero" data-title="Лист героя"
+             style="left:12px; top:46px; width:292px; z-index:14">
+      <header class="title">
+        <span class="t">Лист героя</span>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body">
+        <div style="display:flex; gap:10px; align-items:center">
+          <div class="sigil" id="hero-level">1</div>
+          <div class="hero-id">
+            <button class="hero-name" type="button" id="hero-name">—</button>
+            <input class="hero-name-input" type="text" id="hero-name-input"
+                   maxlength="40" hidden data-i18n-aria="hero.rename">
+            <div class="lab" id="hero-title">—</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="row" style="margin-bottom:4px">
+            <span class="lab" data-i18n="hero.xp">Опыт</span>
+            <span class="num" id="hero-xp">0 / 0</span>
+          </div>
+          <div class="bar"><i id="hero-xp-bar" style="width:0%"></i></div>
+        </div>
+
+        <div class="rule"></div>
+        <span class="lab" data-i18n="hero.stats">Характеристики</span>
+        <div class="stack" style="gap:5px" id="hero-stats"></div>
+
+        <div class="rule"></div>
+        <div class="row">
+          <div>
+            <span class="lab" data-i18n="hero.streak">Серия дней</span>
+            <div class="dim" style="font-size:11px" data-i18n="hero.streak.note"></div>
+          </div>
+          <div class="streak-n" id="hero-streak">0</div>
+        </div>
+
+        <button class="act" type="button" id="rest-btn" data-on="0" style="width:100%"></button>
+      </div>
+    </section>
+
+    <!-- МЕЙН-КВЕСТЫ -->
+    <section class="win" data-win="mains" data-i18n-title="win.mains" data-title="Мейн-квесты"
+             style="left:318px; top:18px; width:488px; z-index:16">
+      <header class="title">
+        <span class="t">Мейн-квесты</span>
+        <button class="btn" type="button" data-min>_</button>
+        <button class="btn" type="button" data-max>□</button>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body">
+        <div class="row">
+          <span class="inv" data-i18n="mains.badge">МЕЙН</span>
+          <span class="lab" id="mains-count">—</span>
+        </div>
+        <div id="mains"></div>
+      </div>
+      <div class="grip" data-grip></div>
+    </section>
+
+    <!-- САЙД-КВЕСТЫ -->
+    <section class="win" data-win="sides" data-i18n-title="win.sides" data-title="Сайд-квесты"
+             style="left:16px; top:472px; width:394px; z-index:18">
+      <header class="title">
+        <span class="t">Сайд-квесты</span>
+        <button class="btn" type="button" data-min>_</button>
+        <button class="btn" type="button" data-max>□</button>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body">
+        <div class="row">
+          <span class="lab" data-i18n="sides.head">Мелочь и ежедневки</span>
+          <span class="lab num" id="sides-count">0 / 0</span>
+        </div>
+        <div class="body well" style="padding:4px; gap:0" id="sides"></div>
+      </div>
+      <div class="grip" data-grip></div>
+    </section>
+
+    <!-- БОССЫ -->
+    <section class="win" data-win="bosses" data-i18n-title="win.bosses" data-title="Боссы"
+             style="left:426px; top:354px; width:564px; z-index:20">
+      <header class="title">
+        <span class="t">Боссы</span>
+        <button class="btn" type="button" data-min>_</button>
+        <button class="btn" type="button" data-max>□</button>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body" id="bosses"></div>
+      <div class="grip" data-grip></div>
+    </section>
+
+    <!-- ЖУРНАЛ -->
+    <section class="win" data-win="log" data-i18n-title="win.log" data-title="Журнал системы"
+             style="left:568px; top:648px; width:558px; z-index:22">
+      <header class="title">
+        <span class="t">Журнал системы</span>
+        <button class="btn" type="button" data-min>_</button>
+        <button class="btn" type="button" data-max>□</button>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body well">
+        <div class="log" id="log"></div>
+      </div>
+      <div class="grip" data-grip></div>
+    </section>
+
+    <!-- НОВЫЙ КВЕСТ -->
+    <section class="win" data-win="new" data-i18n-title="win.new" data-title="Новый квест" hidden
+             style="left:300px; top:190px; width:366px; z-index:40">
+      <header class="title">
+        <span class="t">Новый квест</span>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body">
+        <form class="stack" id="new-quest-form">
+          <div class="field">
+            <label class="lab" for="q-title" data-i18n="form.title">Название</label>
+            <input id="q-title" name="title" type="text" maxlength="120" required
+                   data-i18n-placeholder="form.title.hint" autocomplete="off">
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label class="lab" for="q-kind" data-i18n="form.kind">Тип</label>
+              <select id="q-kind" name="kind">
+                <option value="side" data-i18n="form.kind.side">Сайд-квест</option>
+                <option value="main" data-i18n="form.kind.main">Мейн-квест</option>
+                <option value="boss" data-i18n="form.kind.boss">Босс</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="lab" for="q-stat" data-i18n="form.stat">Характеристика</label>
+              <select id="q-stat" name="stat"></select>
+            </div>
+          </div>
+
+          <div class="field" data-when="main">
+            <label class="lab" for="q-why" data-i18n="form.why">Зачем</label>
+            <input id="q-why" name="why" type="text" maxlength="300"
+                   data-i18n-placeholder="form.why.hint" autocomplete="off">
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label class="lab" for="q-due" data-i18n="form.due">Срок</label>
+              <input id="q-due" name="dueDate" type="date">
+            </div>
+            <div class="field" data-when="side">
+              <label class="lab" for="q-xp" data-i18n="form.xp">Опыт</label>
+              <input id="q-xp" name="xp" type="number" min="1" max="500" value="10">
+            </div>
+            <div class="field" data-when="boss">
+              <label class="lab" for="q-hp" data-i18n="form.hp">Ударов</label>
+              <input id="q-hp" name="hp" type="number" min="1" max="999" value="30">
+            </div>
+            <div class="field" data-when="boss">
+              <label class="lab" for="q-hit" data-i18n="form.hit">Опыт за удар</label>
+              <input id="q-hit" name="hitXp" type="number" min="1" max="500" value="10">
+            </div>
+          </div>
+
+          <label class="check" data-when="side">
+            <input id="q-daily" name="daily" type="checkbox">
+            <span data-i18n="form.daily"></span>
+          </label>
+
+          <button class="act" type="submit" data-i18n="form.submit">Записать в журнал</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- О ПРОГРАММЕ -->
+    <section class="win" data-win="about" data-i18n-title="win.about" data-title="О программе"
+             style="left:14px; top:766px; width:322px; z-index:11">
+      <header class="title">
+        <span class="t">О программе</span>
+        <button class="btn" type="button" data-close>×</button>
+      </header>
+      <div class="body" style="gap:3px">
+        <div style="font-weight:700" data-i18n="about.version"></div>
+        <div class="dim" style="font-size:11px" data-i18n="about.note"></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
