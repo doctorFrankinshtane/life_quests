@@ -288,10 +288,21 @@
             </div>
           </div>
 
-          <label class="check" data-when="side">
-            <input id="q-daily" name="daily" type="checkbox">
-            <span data-i18n="form.daily"></span>
-          </label>
+          <div class="field-row" data-when="side">
+            <div class="field">
+              <label class="lab" for="q-repeat" data-i18n="form.repeat">Повторять</label>
+              <select id="q-repeat" name="repeatUnit">
+                <option value="" data-i18n="repeat.none"></option>
+                <option value="day" data-i18n="repeat.day"></option>
+                <option value="week" data-i18n="repeat.week"></option>
+                <option value="month" data-i18n="repeat.month"></option>
+              </select>
+            </div>
+            <div class="field" id="q-every-field" hidden>
+              <label class="lab" for="q-every" data-i18n="form.every">Каждые</label>
+              <input id="q-every" name="repeatEvery" type="number" min="1" max="30" value="1">
+            </div>
+          </div>
 
           <button class="act" type="submit" data-i18n="form.submit">Записать в журнал</button>
         </form>

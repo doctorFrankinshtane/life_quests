@@ -101,7 +101,23 @@ const DICT = {
       'form.xp': 'Опыт',
       'form.hp': 'Ударов',
       'form.hit': 'Опыт за удар',
-      'form.daily': 'Ежедневка — считать серию',
+      'form.repeat': 'Повторять',
+      'form.every': 'Каждые',
+      'repeat.none': 'не повторять',
+      'repeat.day': 'по дням',
+      'repeat.week': 'по неделям',
+      'repeat.month': 'по месяцам',
+      'repeat.every.day': 'каждый день',
+      'repeat.every.week': 'каждую неделю',
+      'repeat.every.month': 'каждый месяц',
+      'repeat.every.n.day': 'раз в {n}',
+      'repeat.every.n.week': 'раз в {n}',
+      'repeat.every.n.month': 'раз в {n}',
+      'unit.day': ['день', 'дня', 'дней'],
+      'unit.week': ['неделю', 'недели', 'недель'],
+      'unit.month': ['месяц', 'месяца', 'месяцев'],
+      'repeat.renews': 'обновится через {n}',
+      'repeat.renews.today': 'обновится сегодня',
       'form.submit': 'Записать в журнал',
 
       'quest.delete': 'Удалить',
@@ -299,7 +315,23 @@ const DICT = {
       'form.xp': 'XP',
       'form.hp': 'Hits',
       'form.hit': 'XP per hit',
-      'form.daily': 'Daily — count the streak',
+      'form.repeat': 'Repeat',
+      'form.every': 'Every',
+      'repeat.none': 'no repeat',
+      'repeat.day': 'daily',
+      'repeat.week': 'weekly',
+      'repeat.month': 'monthly',
+      'repeat.every.day': 'every day',
+      'repeat.every.week': 'every week',
+      'repeat.every.month': 'every month',
+      'repeat.every.n.day': 'every {n}',
+      'repeat.every.n.week': 'every {n}',
+      'repeat.every.n.month': 'every {n}',
+      'unit.day': ['day', 'days', 'days'],
+      'unit.week': ['week', 'weeks', 'weeks'],
+      'unit.month': ['month', 'months', 'months'],
+      'repeat.renews': 'renews in {n}',
+      'repeat.renews.today': 'renews today',
       'form.submit': 'Write it down',
 
       'quest.delete': 'Delete',
@@ -451,6 +483,13 @@ export function plural(count, key) {
     else if (mod10 >= 2 && mod10 <= 4) form = forms[1];
   }
   return `${count} ${form}`;
+}
+
+/** Человеческая подпись ритма: «каждый день», «раз в 2 недели». */
+export function repeatLabel(repeat) {
+  if (!repeat) return '';
+  if (repeat.every === 1) return t(`repeat.every.${repeat.unit}`);
+  return t(`repeat.every.n.${repeat.unit}`, { n: plural(repeat.every, `unit.${repeat.unit}`) });
 }
 
 /** Готовит параметры события: индексы и ключи превращает в названия. */

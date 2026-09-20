@@ -66,11 +66,11 @@ def _quests(lang):
                     ("Phase 3 · pass the exam", 120, 0),
                 ],
             },
-            {"kind": "side", "title": "10,000 steps", "stat": "body", "xp_reward": 8, "daily": 1, "streak": 6},
-            {"kind": "side", "title": "20 pages of a book", "stat": "mind", "xp_reward": 10, "daily": 1, "streak": 3, "done": 1},
+            {"kind": "side", "title": "10,000 steps", "stat": "body", "xp_reward": 8, "repeat": "day", "streak": 6},
+            {"kind": "side", "title": "20 pages of a book", "stat": "mind", "xp_reward": 10, "repeat": "day", "streak": 3, "done": 1},
             {"kind": "side", "title": "Call my parents", "stat": "bonds", "xp_reward": 12},
             {"kind": "side", "title": "Clear the desk", "stat": "craft", "xp_reward": 6},
-            {"kind": "side", "title": "Lights out by 23:00", "stat": "soul", "xp_reward": 10, "daily": 1, "streak": 1},
+            {"kind": "side", "title": "Lights out by 23:00", "stat": "soul", "xp_reward": 10, "repeat": "day", "streak": 1},
         ]
 
     return [
@@ -110,11 +110,11 @@ def _quests(lang):
                 ("Фаза 3 · сдать экзамен", 120, 0),
             ],
         },
-        {"kind": "side", "title": "10 000 шагов", "stat": "body", "xp_reward": 8, "daily": 1, "streak": 6},
-        {"kind": "side", "title": "20 страниц книги", "stat": "mind", "xp_reward": 10, "daily": 1, "streak": 3, "done": 1},
+        {"kind": "side", "title": "10 000 шагов", "stat": "body", "xp_reward": 8, "repeat": "day", "streak": 6},
+        {"kind": "side", "title": "20 страниц книги", "stat": "mind", "xp_reward": 10, "repeat": "day", "streak": 3, "done": 1},
         {"kind": "side", "title": "Позвонить родителям", "stat": "bonds", "xp_reward": 12},
         {"kind": "side", "title": "Разобрать рабочий стол", "stat": "craft", "xp_reward": 6},
-        {"kind": "side", "title": "Лечь до 23:00", "stat": "soul", "xp_reward": 10, "daily": 1, "streak": 1},
+        {"kind": "side", "title": "Лечь до 23:00", "stat": "soul", "xp_reward": 10, "repeat": "day", "streak": 1},
     ]
 
 
@@ -141,8 +141,9 @@ def fill(con, lang="ru"):
             quest_id = con.execute(
                 """INSERT INTO quests
                        (kind, title, why, stat, due_date, xp_reward,
-                        hp_max, hp_left, hit_xp, daily, streak, done, sort)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        hp_max, hp_left, hit_xp, repeat_unit, period_start,
+                        streak, done, sort)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     quest["kind"],
                     quest["title"],
@@ -153,7 +154,8 @@ def fill(con, lang="ru"):
                     quest.get("hp_max"),
                     quest.get("hp_left"),
                     quest.get("hit_xp"),
-                    quest.get("daily", 0),
+                    quest.get("repeat"),
+                    date.today().isoformat() if quest.get("repeat") else None,
                     quest.get("streak", 0),
                     quest.get("done", 0),
                     sort,

@@ -10,7 +10,8 @@
 
 import json
 import re
-from datetime import date
+from calendar import monthrange
+from datetime import date, timedelta
 
 from . import xp as xp_rules
 from .db import LANGS, SKINS, STAT_KEYS
@@ -36,6 +37,11 @@ CLOSE_BONUS_SHARE = 0.25
 DEFAULT_SIDE_XP = 10
 DEFAULT_CHAPTER_XP = 20
 DEFAULT_HIT_XP = 10
+
+# Повторение: раз в repeat_every единиц. Больше тридцати недель подряд —
+# это уже не привычка, а разовое дело со сроком.
+REPEAT_UNITS = ("day", "week", "month")
+MAX_REPEAT_EVERY = 30
 
 
 class Bad(Exception):
@@ -151,6 +157,73 @@ def take_xp(con, amount, stat):
 # Чтение состояния
 # --------------------------------------------------------------------------
 
+def add_period(start, unit, every):
+    """Прибавляет к дате один период. Месяц считается по календарю."""
+    if unit == "day":
+        return start + timedelta(days=every)
+    if unit == "week":
+        return start + timedelta(weeks=every)
+
+    month = start.month - 1 + every
+    year = start.year + month // 12
+    month = month % 12 + 1
+    day = min(start.day, monthrange(year, month)[1])   # 31 января → 28 февраля
+    return date(year, month, day)
+
+
+def want_repeat(body):
+    """Разбирает {unit, every} из формы. None — разовое дело."""
+    repeat = body.get("repeat")
+    if repeat in (None, "", {}):
+        return None
+    if not isinstance(repeat, dict):
+        raise Bad("Повторение задаётся объектом {unit, every}")
+
+    unit = want_choice(repeat, "unit", REPEAT_UNITS)
+    every = want_int(repeat, "every", low=1, high=MAX_REPEAT_EVERY, default=1)
+    return {"unit": unit, "every": every}
+
+
+def period_end(quest):
+    """Когда текущий период закончится и квест откроется снова."""
+    if not quest["repeat_unit"] or not quest["period_start"]:
+        return None
+    return add_period(
+        date.fromisoformat(quest["period_start"]), quest["repeat_unit"], quest["repeat_every"]
+    )
+
+
+def roll_periods(con, today=None):
+    """Открывает повторяющиеся квесты, у которых закончился период.
+
+    Серия держится, пока человек закрывал квест в каждом периоде подряд.
+    Пропущенный период её обнуляет — но только когда период действительно
+    прошёл, а не в момент, когда о нём вспомнили.
+    """
+    today = today or date.today()
+
+    for quest in con.execute(
+        "SELECT * FROM quests WHERE repeat_unit IS NOT NULL AND period_start IS NOT NULL"
+    ).fetchall():
+        start = date.fromisoformat(quest["period_start"])
+        end = add_period(start, quest["repeat_unit"], quest["repeat_every"])
+        if today < end:
+            continue
+
+        # Перематываем до периода, в котором мы сейчас.
+        skipped = 0
+        while today >= end:
+            skipped += 1
+            start, end = end, add_period(end, quest["repeat_unit"], quest["repeat_every"])
+
+        # Закрытый квест переживает ровно один переход периода.
+        streak = quest["streak"] if quest["done"] and skipped == 1 else 0
+        con.execute(
+            "UPDATE quests SET done = 0, done_at = NULL, period_start = ?, streak = ? WHERE id = ?",
+            (start.isoformat(), streak, quest["id"]),
+        )
+
+
 def days_left(due_date, today=None):
     if not due_date:
         return None
@@ -247,6 +320,21 @@ def fetch_quest(con, quest_id, kind=None):
     return quest
 
 
+def side_shape(quest, today=None):
+    """Поля сайд-квеста, общие для открытых и закрытых."""
+    end = period_end(quest)
+    return {
+        "xp": quest["xp_reward"],
+        "streak": quest["streak"],
+        "done": bool(quest["done"]),
+        "repeat": (
+            {"unit": quest["repeat_unit"], "every": quest["repeat_every"]}
+            if quest["repeat_unit"] else None
+        ),
+        "renewsIn": (end - (today or date.today())).days if end else None,
+    }
+
+
 def read_state(con, today=None):
     profile = con.execute("SELECT * FROM profile WHERE id = 1").fetchone()
     stats = con.execute("SELECT key, value FROM stats ORDER BY sort").fetchall()
@@ -294,13 +382,7 @@ def read_state(con, today=None):
                 "doneCount": sum(1 for chapter in own if chapter["done"]),
             })
         elif quest["kind"] == "side":
-            sides.append({
-                **base,
-                "xp": quest["xp_reward"],
-                "daily": bool(quest["daily"]),
-                "streak": quest["streak"],
-                "done": False,
-            })
+            sides.append({**base, **side_shape(quest, today)})
         else:
             bosses.append({
                 **base,
@@ -321,10 +403,7 @@ def read_state(con, today=None):
             "stat": quest["stat"],
             "dueDate": quest["due_date"],
             "daysLeft": days_left(quest["due_date"], today),
-            "xp": quest["xp_reward"],
-            "daily": bool(quest["daily"]),
-            "streak": quest["streak"],
-            "done": True,
+            **side_shape(quest, today),
         })
 
     events = con.execute(
@@ -397,11 +476,19 @@ def create_quest(con, _target, body):
 
     if kind == "side":
         reward = want_int(body, "xp", low=1, high=MAX_CHAPTER_XP, default=DEFAULT_SIDE_XP)
-        daily = 1 if body.get("daily") else 0
+        repeat = want_repeat(body)
         con.execute(
-            """INSERT INTO quests (kind, title, stat, due_date, xp_reward, daily, sort)
-               VALUES ('side', ?, ?, ?, ?, ?, ?)""",
-            (title, stat, due, reward, daily, next_sort(con, "side")),
+            """INSERT INTO quests
+                   (kind, title, stat, due_date, xp_reward,
+                    repeat_unit, repeat_every, period_start, sort)
+               VALUES ('side', ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                title, stat, due, reward,
+                repeat["unit"] if repeat else None,
+                repeat["every"] if repeat else 1,
+                date.today().isoformat() if repeat else None,
+                next_sort(con, "side"),
+            ),
         )
         log(con, "side_created", title=title, xp=reward)
         return [note("side_created", title=title, xp=reward)]
@@ -563,7 +650,7 @@ def toggle_side(con, quest_id, _body):
     done = 0 if quest["done"] else 1
 
     streak = quest["streak"]
-    if quest["daily"]:
+    if quest["repeat_unit"]:
         streak = streak + 1 if done else max(0, streak - 1)
 
     con.execute(
@@ -630,11 +717,21 @@ def update_quest(con, quest_id, body):
     if quest["kind"] == "side":
         if "xp" in body:
             put("xp_reward", want_int(body, "xp", low=1, high=MAX_CHAPTER_XP))
-        if "daily" in body:
-            daily = 1 if body["daily"] else 0
-            put("daily", daily)
-            if not daily:
-                put("streak", 0)          # без ежедневки серия теряет смысл
+        if "repeat" in body:
+            repeat = want_repeat(body)
+            was = quest["repeat_unit"]
+            put("repeat_unit", repeat["unit"] if repeat else None)
+            put("repeat_every", repeat["every"] if repeat else 1)
+
+            if repeat is None:
+                put("period_start", None)
+                put("streak", 0)          # без повторения серия теряет смысл
+            elif was is None:
+                put("period_start", date.today().isoformat())
+            elif repeat["unit"] != was or repeat["every"] != quest["repeat_every"]:
+                # Новый ритм — новый отсчёт: сравнивать серию не с чем.
+                put("period_start", date.today().isoformat())
+                put("streak", 0)
 
     if quest["kind"] == "boss":
         if "hitXp" in body:

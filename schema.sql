@@ -51,7 +51,12 @@ CREATE TABLE quests (
   hp_max     INTEGER          CHECK (hp_max IS NULL OR hp_max > 0),
   hp_left    INTEGER          CHECK (hp_left IS NULL OR hp_left >= 0),
   hit_xp     INTEGER          CHECK (hit_xp IS NULL OR hit_xp > 0),
-  daily      INTEGER NOT NULL DEFAULT 0 CHECK (daily IN (0, 1)),
+  -- Повторение сайд-квеста: раз в repeat_every единиц repeat_unit.
+  -- NULL — разовое дело. period_start хранит начало текущего периода,
+  -- по нему квест сам открывается заново (app/api.py: roll_periods).
+  repeat_unit  TEXT         CHECK (repeat_unit IN ('day', 'week', 'month')),
+  repeat_every INTEGER NOT NULL DEFAULT 1 CHECK (repeat_every > 0),
+  period_start TEXT,
   streak     INTEGER NOT NULL DEFAULT 0 CHECK (streak >= 0),
   done       INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
   sort       INTEGER NOT NULL DEFAULT 0,
@@ -59,6 +64,7 @@ CREATE TABLE quests (
   done_at    TEXT,
 
   CHECK (hp_left IS NULL OR hp_max IS NULL OR hp_left <= hp_max),
+  CHECK (repeat_unit IS NULL OR period_start IS NOT NULL),
   CHECK (kind <> 'boss' OR (hp_max IS NOT NULL AND hp_left IS NOT NULL AND hit_xp IS NOT NULL))
 );
 CREATE INDEX quests_kind ON quests (kind, done, sort, id);

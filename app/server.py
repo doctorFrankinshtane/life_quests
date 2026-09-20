@@ -17,7 +17,7 @@ def make_handler(config):
         # --- API ---------------------------------------------------------
         def do_GET(self):
             if self.route() == "/api/state":
-                self.with_db(lambda con: self.send_json(api.read_state(con)))
+                self.with_db(self.send_state)
             elif self.route().startswith("/api/"):
                 self.send_json({"error": "Нет такого адреса"}, 404)
             else:
@@ -38,6 +38,7 @@ def make_handler(config):
             def run(con):
                 try:
                     with con:
+                        api.roll_periods(con)
                         flash = api.dispatch(con, path, body)
                         state = api.read_state(con)
                 except api.Bad as err:
@@ -50,6 +51,11 @@ def make_handler(config):
             self.with_db(run)
 
         # --- помощники ---------------------------------------------------
+        def send_state(self, con):
+            with con:
+                api.roll_periods(con)     # повторяющиеся квесты открываются сами
+            self.send_json(api.read_state(con))
+
         def route(self):
             return self.path.split("?")[0].rstrip("/") or "/"
 

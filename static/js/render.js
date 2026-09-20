@@ -1,7 +1,7 @@
 /** Отрисовка состояния. Ни одной цифры здесь не вычисляется — всё приходит с сервера. */
 
 import * as api from './api.js';
-import { eventLine, eventNote, plural, rankName, statName, t } from './i18n.js';
+import { eventLine, eventNote, plural, rankName, repeatLabel, statName, t } from './i18n.js';
 import { failure, flash, toast } from './notify.js';
 import { openWindow } from './desktop.js';
 
@@ -212,7 +212,8 @@ function editForm(quest, kind) {
 
   let why = null;
   let amount = null;
-  let daily = null;
+  let repeatUnit = null;
+  let repeatEvery = null;
   let hits = null;
   let hitXp = null;
 
@@ -223,7 +224,18 @@ function editForm(quest, kind) {
   if (kind === 'side') {
     amount = el('input', { type: 'number', min: 1, max: 500, value: quest.xp });
     pair.push(field(t('form.xp'), amount));
-    daily = el('input', { type: 'checkbox', checked: quest.daily });
+
+    const unit = quest.repeat?.unit || '';
+    repeatUnit = el('select', {}, ...[['', 'repeat.none'], ['day', 'repeat.day'],
+      ['week', 'repeat.week'], ['month', 'repeat.month']].map(([value, key]) =>
+        el('option', { value, selected: value === unit }, t(key))));
+
+    repeatEvery = el('input', {
+      type: 'number', min: 1, max: 30, value: quest.repeat?.every || 1, hidden: !unit,
+    });
+    repeatUnit.addEventListener('change', () => { repeatEvery.hidden = !repeatUnit.value; });
+
+    pair.push(field(t('form.repeat'), repeatUnit), field(t('form.every'), repeatEvery));
   }
   if (kind === 'boss') {
     hits = el('input', { type: 'number', min: 1, max: 999, value: quest.hpMax });
@@ -232,7 +244,6 @@ function editForm(quest, kind) {
   }
 
   rows.push(el('div', 'field-row', ...pair));
-  if (daily) rows.push(el('label', 'check', daily, el('span', {}, t('form.daily'))));
 
   const cancel = el('button', { className: 'act', type: 'button' }, t('quest.cancel'));
   cancel.addEventListener('click', () => {
@@ -255,7 +266,11 @@ function editForm(quest, kind) {
     };
     if (why) patch.why = why.value;
     if (amount) patch.xp = Number(amount.value);
-    if (daily) patch.daily = daily.checked;
+    if (repeatUnit) {
+      patch.repeat = repeatUnit.value
+        ? { unit: repeatUnit.value, every: Number(repeatEvery.value) }
+        : null;
+    }
     if (hits) patch.hp = Number(hits.value);
     if (hitXp) patch.hitXp = Number(hitXp.value);
 
@@ -410,7 +425,15 @@ function sideRow(side) {
   if (editingQuest === side.id) return editForm(side, 'side');
 
   const meta = [statName(side.stat)];
-  if (side.daily) meta.push(t('sides.streak', { n: side.streak }));
+  if (side.repeat) {
+    meta.push(repeatLabel(side.repeat));
+    meta.push(t('sides.streak', { n: side.streak }));
+    if (side.done && side.renewsIn !== null) {
+      meta.push(side.renewsIn <= 0
+        ? t('repeat.renews.today')
+        : t('repeat.renews', { n: plural(side.renewsIn, 'day') }));
+    }
+  }
   if (side.daysLeft !== null && side.daysLeft !== undefined && side.daysLeft < 0) {
     meta.push(t('due.overdue'));
   }
@@ -467,6 +490,8 @@ function syncFormFields() {
   for (const field of document.querySelectorAll('[data-when]')) {
     field.hidden = field.dataset.when !== kind;
   }
+  // «Каждые N» нужно только когда ритм выбран.
+  $('q-every-field').hidden = kind !== 'side' || !$('q-repeat').value;
 }
 
 /** Заполняет список характеристик — набор ключей приходит с сервера. */
@@ -518,6 +543,7 @@ export function initForms() {
   const form = $('new-quest-form');
 
   $('q-kind').addEventListener('change', syncFormFields);
+  $('q-repeat').addEventListener('change', syncFormFields);
   syncFormFields();
 
   form.addEventListener('submit', async (event) => {
@@ -534,7 +560,8 @@ export function initForms() {
     if (kind === 'main') quest.why = data.get('why') || '';
     if (kind === 'side') {
       quest.xp = Number(data.get('xp'));
-      quest.daily = data.get('daily') === 'on';
+      const unit = data.get('repeatUnit');
+      quest.repeat = unit ? { unit, every: Number(data.get('repeatEvery')) } : null;
     }
     if (kind === 'boss') {
       quest.hp = Number(data.get('hp'));

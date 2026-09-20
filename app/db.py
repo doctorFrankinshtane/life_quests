@@ -40,19 +40,45 @@ def create(con, schema_sql, hero_name):
 LATER_COLUMNS = (
     ("profile", "notepad", "TEXT NOT NULL DEFAULT ''"),
     ("chapters", "parent_id", "INTEGER REFERENCES chapters(id) ON DELETE CASCADE"),
+    ("quests", "repeat_unit", "TEXT"),
+    ("quests", "repeat_every", "INTEGER NOT NULL DEFAULT 1"),
+    ("quests", "period_start", "TEXT"),
 )
+
+# Колонки, которые заменены и больше не нужны.
+DROPPED_COLUMNS = (("quests", "daily"),)
+
+
+def columns_of(con, table):
+    return {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
 
 
 def migrate(con):
-    """Доводит старую базу до текущей схемы. Возвращает добавленные колонки."""
-    added = []
+    """Доводит старую базу до текущей схемы. Возвращает список изменений."""
+    changes = []
     with con:
         for table, column, definition in LATER_COLUMNS:
-            have = {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
-            if column not in have:
-                con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-                added.append(f"{table}.{column}")
-    return added
+            if column in columns_of(con, table):
+                continue
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            changes.append(f"{table}.{column}")
+
+        # Бывшая галочка «ежедневка» становится повторением раз в день.
+        if "daily" in columns_of(con, "quests"):
+            con.execute(
+                """UPDATE quests
+                      SET repeat_unit = 'day',
+                          repeat_every = 1,
+                          period_start = coalesce(period_start, date(created_at))
+                    WHERE daily = 1 AND repeat_unit IS NULL"""
+            )
+
+        for table, column in DROPPED_COLUMNS:
+            if column in columns_of(con, table):
+                con.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+                changes.append(f"{table}.{column} (убрана)")
+
+    return changes
 
 
 def open_or_create(config):

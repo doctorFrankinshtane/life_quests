@@ -1,6 +1,6 @@
 # Life Quests
 
-Goals as quests. Main quests split into chapters, side quests and dailies,
+Goals as quests. Main quests split into steps, side quests that repeat,
 bosses with a health bar, experience and levels — in the interface of a
 nineties operating system, where you drag the windows around.
 
@@ -34,7 +34,7 @@ Read from the environment; the code only holds defaults.
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -t .   # 111 tests: server
+python -m unittest discover -s tests -t .   # 120 tests: server
 node --test tests/test_layout.mjs           # 15 tests: window layout
 ```
 
@@ -95,6 +95,10 @@ Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
   real action, and no checkbox ends it.
 - **Rest.** A pause without punishment: the streak freezes, nothing burns
   down. Punishing a sick week drives people away for good.
+- **A repeat is a rhythm, not a checkbox.** A side quest can come back every
+  day, every week, every month, or every N of those. It reopens on its own
+  when the period ends; the streak survives a period you closed and resets on
+  one you skipped.
 - **Five attributes.** The level speaks of volume, the bars of balance.
 - **Three main quests at a time.** Twenty goals feel like debt.
 - **Experience is computed.** A main quest pays the sum of its chapters plus

@@ -97,10 +97,10 @@ class CreateQuest(Base):
         self.make_main(title="Новая цель")          # слот освободился
         self.assertEqual(len(self.state()["mains"]), api.MAX_ACTIVE_MAINS)
 
-    def test_side_takes_custom_xp_and_daily_flag(self):
-        side = self.make_side(xp=25, daily=True)
+    def test_side_takes_custom_xp_and_repeat(self):
+        side = self.make_side(xp=25, repeat={"unit": "week", "every": 2})
         self.assertEqual(side["xp"], 25)
-        self.assertTrue(side["daily"])
+        self.assertEqual(side["repeat"], {"unit": "week", "every": 2})
 
     def test_side_xp_defaults(self):
         self.assertEqual(self.make_side()["xp"], api.DEFAULT_SIDE_XP)
@@ -391,7 +391,7 @@ class DeleteStep(Base):
 
 class Sides(Base):
     def test_daily_streak_grows_and_shrinks(self):
-        side = self.make_side(daily=True, xp=10)
+        side = self.make_side(repeat={"unit": "day", "every": 1}, xp=10)
         api.toggle_side(self.con, side["id"], {})
         self.assertEqual(self.state()["sides"][0]["streak"], 1)
 
@@ -399,7 +399,7 @@ class Sides(Base):
         self.assertEqual(self.state()["sides"][0]["streak"], 0)
 
     def test_one_off_side_has_no_streak(self):
-        side = self.make_side(daily=False)
+        side = self.make_side()
         api.toggle_side(self.con, side["id"], {})
         self.assertEqual(self.state()["sides"][0]["streak"], 0)
 
@@ -416,6 +416,103 @@ class Sides(Base):
         self.assertEqual(self.xp_total(), 15)
         api.toggle_side(self.con, side["id"], {})
         self.assertEqual(self.xp_total(), 0)
+
+
+class Repeats(Base):
+    """Периодичность: квест сам открывается, когда период закончился."""
+
+    def side_row(self):
+        return self.state()["sides"][0]
+
+    def db_row(self, quest_id):
+        return self.con.execute("SELECT * FROM quests WHERE id = ?", (quest_id,)).fetchone()
+
+    def test_period_arithmetic(self):
+        start = date(2026, 1, 31)
+        self.assertEqual(api.add_period(start, "day", 3), date(2026, 2, 3))
+        self.assertEqual(api.add_period(start, "week", 2), date(2026, 2, 14))
+        # 31 января плюс месяц — конец февраля, а не выдуманное 31 февраля
+        self.assertEqual(api.add_period(start, "month", 1), date(2026, 2, 28))
+        self.assertEqual(api.add_period(date(2026, 11, 30), "month", 2), date(2027, 1, 30))
+
+    def test_one_off_side_never_rolls(self):
+        side = self.make_side()
+        api.toggle_side(self.con, side["id"], {})
+        api.roll_periods(self.con, date.today() + timedelta(days=365))
+        self.assertTrue(self.side_row()["done"], "разовое дело не открывается заново")
+
+    def test_weekly_quest_reopens_after_a_week(self):
+        side = self.make_side(repeat={"unit": "week", "every": 1}, xp=10)
+        api.toggle_side(self.con, side["id"], {})
+        self.assertTrue(self.side_row()["done"])
+
+        api.roll_periods(self.con, date.today() + timedelta(days=6))
+        self.assertTrue(self.side_row()["done"], "неделя ещё не прошла")
+
+        api.roll_periods(self.con, date.today() + timedelta(days=7))
+        row = self.side_row()
+        self.assertFalse(row["done"], "новая неделя — квест снова открыт")
+        self.assertEqual(row["streak"], 1, "серия держится: период закрыли вовремя")
+
+    def test_missed_period_resets_the_streak(self):
+        side = self.make_side(repeat={"unit": "day", "every": 1}, xp=10)
+        api.toggle_side(self.con, side["id"], {})
+
+        api.roll_periods(self.con, date.today() + timedelta(days=1))
+        self.assertEqual(self.side_row()["streak"], 1)
+
+        # день прошёл, а квест не закрыли
+        api.roll_periods(self.con, date.today() + timedelta(days=2))
+        self.assertEqual(self.side_row()["streak"], 0, "пропуск обнуляет серию")
+
+    def test_long_absence_resets_once(self):
+        side = self.make_side(repeat={"unit": "day", "every": 1}, xp=10)
+        api.toggle_side(self.con, side["id"], {})
+
+        api.roll_periods(self.con, date.today() + timedelta(days=40))
+        row = self.side_row()
+        self.assertEqual(row["streak"], 0)
+        self.assertFalse(row["done"])
+        self.assertEqual(
+            self.db_row(side["id"])["period_start"],
+            (date.today() + timedelta(days=40)).isoformat(),
+            "период должен догнать сегодняшний день, а не остаться в прошлом",
+        )
+
+    def test_every_three_days_waits_three_days(self):
+        side = self.make_side(repeat={"unit": "day", "every": 3}, xp=10)
+        api.toggle_side(self.con, side["id"], {})
+
+        api.roll_periods(self.con, date.today() + timedelta(days=2))
+        self.assertTrue(self.side_row()["done"])
+
+        api.roll_periods(self.con, date.today() + timedelta(days=3))
+        self.assertFalse(self.side_row()["done"])
+
+    def test_renews_in_counts_down(self):
+        self.make_side(repeat={"unit": "week", "every": 1})
+        self.assertEqual(self.side_row()["renewsIn"], 7)
+
+    def test_changing_the_rhythm_restarts_the_count(self):
+        side = self.make_side(repeat={"unit": "day", "every": 1}, xp=10)
+        api.toggle_side(self.con, side["id"], {})
+        self.assertEqual(self.side_row()["streak"], 1)
+
+        api.update_quest(self.con, side["id"], {"repeat": {"unit": "month", "every": 1}})
+        row = self.side_row()
+        self.assertEqual(row["repeat"], {"unit": "month", "every": 1})
+        self.assertEqual(row["streak"], 0, "новый ритм — новый отсчёт")
+
+    def test_bad_repeat_is_rejected(self):
+        cases = [
+            {"unit": "year", "every": 1},
+            {"unit": "day", "every": 0},
+            {"unit": "day", "every": api.MAX_REPEAT_EVERY + 1},
+            {"every": 2},
+        ]
+        for repeat in cases:
+            with self.subTest(repeat=repeat), self.assertRaises(api.Bad):
+                self.make_side(title="Плохой ритм", repeat=repeat)
 
 
 class Boss(Base):
@@ -498,14 +595,15 @@ class EditQuest(Base):
         self.assertEqual(self.stat("craft"), points, "очки остались на прежней шкале")
         self.assertEqual(self.stat("soul"), 0, "новая шкала не получает чужую работу")
 
-    def test_side_xp_and_daily_change(self):
-        side = self.make_side(xp=10, daily=True)
-        api.update_quest(self.con, side["id"], {"xp": 25, "daily": False})
+    def test_side_xp_and_repeat_change(self):
+        side = self.make_side(xp=10, repeat={"unit": "day", "every": 1})
+        api.toggle_side(self.con, side["id"], {})
+        api.update_quest(self.con, side["id"], {"xp": 25, "repeat": None})
 
         fresh = self.state()["sides"][0]
         self.assertEqual(fresh["xp"], 25)
-        self.assertFalse(fresh["daily"])
-        self.assertEqual(fresh["streak"], 0, "без ежедневки серия обнуляется")
+        self.assertIsNone(fresh["repeat"])
+        self.assertEqual(fresh["streak"], 0, "без повторения серия теряет смысл")
 
     def test_boss_hit_count_keeps_the_damage_dealt(self):
         boss = self.make_boss(hp=10, hitXp=5)
