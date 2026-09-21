@@ -348,11 +348,8 @@ function mainCard(quest) {
 }
 
 function renderMains() {
-  const { mains, limits } = api.state;
-  $('mains-count').textContent = t('mains.count', {
-    active: mains.length,
-    limit: limits.maxMains,
-  });
+  const { mains } = api.state;
+  $('mains-count').textContent = t('mains.count', { active: mains.length });
 
   $('mains').replaceChildren(mains.length
     ? el('div', {}, ...mains.map(mainCard))

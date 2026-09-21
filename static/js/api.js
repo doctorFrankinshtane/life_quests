@@ -12,7 +12,7 @@ export const state = {
   sides: [],
   archive: [],
   events: [],
-  limits: { maxMains: 3, skins: [] },
+  limits: { skins: [] },
 };
 
 /** Ошибка, у которой есть текст для человека. */

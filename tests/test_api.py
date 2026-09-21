@@ -81,22 +81,11 @@ class CreateQuest(Base):
         self.assertEqual(quest["chapters"], [])
         self.assertEqual(quest["xpTotal"], 0)
 
-    def test_main_limit_is_enforced(self):
-        for n in range(api.MAX_ACTIVE_MAINS):
+    def test_mains_have_no_limit(self):
+        """Лимит трёх мейнов убрали: сколько целей держать — решает человек."""
+        for n in range(5):
             self.make_main(title=f"Цель {n}")
-        with self.assertRaises(api.Bad) as caught:
-            self.make_main(title="Лишняя")
-        self.assertEqual(caught.exception.status, 409)
-
-    def test_closing_a_main_frees_the_slot(self):
-        for n in range(api.MAX_ACTIVE_MAINS):
-            quest = self.make_main(title=f"Цель {n}")
-        api.add_chapter(self.con, quest["id"], {"name": "Единственный шаг"})
-        chapter = self.state()["mains"][-1]["chapters"][0]
-        api.toggle_chapter(self.con, chapter["id"], {})
-
-        self.make_main(title="Новая цель")          # слот освободился
-        self.assertEqual(len(self.state()["mains"]), api.MAX_ACTIVE_MAINS)
+        self.assertEqual(len(self.state()["mains"]), 5)
 
     def test_side_takes_custom_xp_and_repeat(self):
         side = self.make_side(xp=25, repeat={"unit": "week", "every": 2})

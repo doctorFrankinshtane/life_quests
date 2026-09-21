@@ -100,7 +100,6 @@ Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
   when the period ends; the streak survives a period you closed and resets on
   one you skipped.
 - **Five attributes.** The level speaks of volume, the bars of balance.
-- **Three main quests at a time.** Twenty goals feel like debt.
 - **Experience is computed.** A main quest pays the sum of its chapters plus
   a quarter for closing it — never a number picked by hand.
 

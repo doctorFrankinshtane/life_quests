@@ -55,7 +55,7 @@ const DICT = {
       'notepad.saving': 'сохраняю…',
 
       'mains.badge': 'МЕЙН',
-      'mains.count': 'активных {active} · лимит {limit}',
+      'mains.count': 'активных {active}',
       'mains.empty': 'Ни одного мейн-квеста. Меню «Квест» → «Новый квест».',
       'mains.chapters': 'Шаги',
       'mains.fog.head': 'В ТУМАНЕ. ',
@@ -284,7 +284,7 @@ const DICT = {
       'notepad.saving': 'saving…',
 
       'mains.badge': 'MAIN',
-      'mains.count': 'active {active} · limit {limit}',
+      'mains.count': 'active {active}',
       'mains.empty': 'No main quests yet. Menu “Quest” → “New quest”.',
       'mains.chapters': 'Steps',
       'mains.fog.head': 'IN THE FOG. ',

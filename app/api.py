@@ -26,8 +26,6 @@ MAX_EVENTS = 40
 MAX_NOTEPAD = 20_000
 
 # --- правила игры --------------------------------------------------------
-# Больше трёх мейн-квестов разом — это уже список дел, а не игра.
-MAX_ACTIVE_MAINS = 3
 # Глубина шагов: шаг и подшаг. Дальше дробить — значит, мейн-квест выбран
 # слишком крупно, и его пора разбивать на два.
 MAX_DEPTH = 2
@@ -448,7 +446,6 @@ def read_state(con, today=None):
             for row in reversed(events)
         ],
         "limits": {
-            "maxMains": MAX_ACTIVE_MAINS,
             "skins": list(SKINS),
             "langs": list(LANGS),
             "stats": list(STAT_KEYS),
@@ -473,15 +470,6 @@ def create_quest(con, _target, body):
     due = want_date(body, "dueDate")
 
     if kind == "main":
-        active = con.execute(
-            "SELECT count(*) AS n FROM quests WHERE kind = 'main' AND done = 0"
-        ).fetchone()["n"]
-        if active >= MAX_ACTIVE_MAINS:
-            raise Bad(
-                f"Активных мейн-квестов уже {MAX_ACTIVE_MAINS}. "
-                "Закройте один, прежде чем брать новый.",
-                409,
-            )
         why = want_text(body, "why", limit=MAX_WHY, required=False)
         con.execute(
             """INSERT INTO quests (kind, title, why, stat, due_date, sort)
