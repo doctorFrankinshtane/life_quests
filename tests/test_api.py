@@ -677,6 +677,8 @@ class Profile(Base):
     def test_skin_whitelist(self):
         api.update_profile(self.con, None, {"skin": "platinum"})
         self.assertEqual(self.state()["profile"]["skin"], "platinum")
+        api.update_profile(self.con, None, {"skin": "plum"})
+        self.assertEqual(self.state()["profile"]["skin"], "plum")
         with self.assertRaises(api.Bad):
             api.update_profile(self.con, None, {"skin": "amber"})
 

@@ -9,7 +9,7 @@ STAT_KEYS = ("body", "mind", "craft", "soul", "bonds")
 
 # Облики интерфейса. Проверяются здесь, а не CHECK-ом в схеме, чтобы новый
 # облик не требовал миграции базы.
-SKINS = ("win98", "platinum")
+SKINS = ("win98", "platinum", "plum")
 
 # Языки интерфейса. Словари лежат в static/js/i18n.js.
 LANGS = ("ru", "en")

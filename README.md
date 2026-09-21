@@ -105,9 +105,9 @@ Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
 
 ## Interface
 
-Two skins: **Windows 98** and **Platinum** (Mac OS 8). A skin only swaps CSS
-variables — colours, bevels, title bar, font — so a third one costs a block
-in `static/css/tokens.css`.
+Three skins: **Windows 98**, **Platinum** (Mac OS 8) and **Plum** (a 98-era
+desktop theme). A skin only swaps CSS variables — colours, bevels, title
+bar, font — so a new one costs a block in `static/css/tokens.css`.
 
 Two languages, Russian and English, switched from the menu and stored with
 your progress.

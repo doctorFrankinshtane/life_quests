@@ -93,3 +93,46 @@
   --btn-h: 13px;
   --btn-order: -1;   /* у Mac OS кнопка закрытия слева */
 }
+
+/* ---------------------------------------------------------------
+   СЛИВА — из коллекции тем Windows 98
+   --------------------------------------------------------------- */
+:root[data-skin="plum"] {
+  --desk-bg: #6e4463;
+  --face:    #d9cfd6;
+  --face-2:  #cec2ca;
+  --well:    #f7f2f5;
+  --ink:     #2a1f28;
+  --ink-dim: #6e5a68;
+  --lt:      #ffffff;
+  --lt2:     #efe6ec;
+  --dk:      #9c8a97;
+  --dk2:     #4e3b4a;
+  --sel-bg:  #8a4a7d;
+  --sel-fg:  #ffffff;
+  --accent:  #8a4a7d;
+  --warn:    #b03030;
+
+  --font: Tahoma, "Segoe UI", Verdana, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, ui-monospace, monospace;
+
+  --raise: inset -1px -1px 0 var(--dk2), inset 1px 1px 0 var(--lt),
+           inset -2px -2px 0 var(--dk),  inset 2px 2px 0 var(--lt2);
+  --sink:  inset 1px 1px 0 var(--dk),   inset -1px -1px 0 var(--lt),
+           inset 2px 2px 0 var(--dk2),  inset -2px -2px 0 var(--lt2);
+  --drop: 0 0 0 0 transparent;
+  --win-border: 0;
+
+  --title-h: 20px;
+  --title-bg:     linear-gradient(90deg, #7c3a6e 0%, #b77ba6 100%);
+  --title-bg-off: linear-gradient(90deg, #9c8a97 0%, #c5b4c0 100%);
+  --title-fg: #ffffff;
+  --title-weight: 700;
+  --title-justify: flex-start;
+  --title-pad: 0 2px 0 4px;
+  --t-bg: transparent;
+
+  --btn-w: 16px;
+  --btn-h: 14px;
+  --btn-order: 0;
+}

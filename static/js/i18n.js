@@ -19,7 +19,7 @@ const DICT = {
       body: 'Тело', mind: 'Разум', craft: 'Ремесло', soul: 'Дух', bonds: 'Связи',
     },
     title: ['Новичок', 'Искатель', 'Странник', 'Следопыт', 'Ветеран', 'Мастер'],
-    skin: { win98: 'Окна 98', platinum: 'Платина' },
+    skin: { win98: 'Окна 98', platinum: 'Платина', plum: 'Слива' },
 
     ui: {
       'menu.quest': 'Квест',
@@ -248,7 +248,7 @@ const DICT = {
       body: 'Body', mind: 'Mind', craft: 'Craft', soul: 'Spirit', bonds: 'Bonds',
     },
     title: ['Novice', 'Seeker', 'Wanderer', 'Pathfinder', 'Veteran', 'Master'],
-    skin: { win98: 'Windows 98', platinum: 'Platinum' },
+    skin: { win98: 'Windows 98', platinum: 'Platinum', plum: 'Plum' },
 
     ui: {
       'menu.quest': 'Quest',
