@@ -34,8 +34,8 @@ Read from the environment; the code only holds defaults.
 ## Tests
 
 ```bash
-python -m unittest discover -s tests -t .   # 120 tests: server
-node --test tests/test_layout.mjs           # 15 tests: window layout
+python -m unittest discover -s tests -t .   # the server suite
+node --test tests/test_layout.mjs           # the window layout
 ```
 
 Experience maths, actions against the database, a live server on a free port,
@@ -47,9 +47,12 @@ runners are built in — nothing to install.
 ```
 run.py         entry point
 schema.sql     six tables
+app/config.py  settings from the environment
+app/db.py      connections, schema creation, migrations
 app/xp.py      experience: thresholds, levels, ranks
 app/api.py     actions and state assembly
 app/server.py  HTTP: static files plus JSON API
+app/seed.py    demo data in two languages
 static/        index.html, css/, js/
 tests/         unittest, plus node --test for the layout
 ```
@@ -67,21 +70,8 @@ That is what lets a language switch rewrite the whole journal after the fact.
 
 ### API
 
-| Request                          | Does                              |
-| -------------------------------- | --------------------------------- |
-| `GET  /api/state`                | the whole state                   |
-| `POST /api/quests`               | create a quest                    |
-| `POST /api/quests/{id}/chapters` | add a step, a substep or a boss phase |
-| `POST /api/quests/{id}/toggle`   | tick a side quest                 |
-| `POST /api/quests/{id}/hit`      | strike a boss                     |
-| `POST /api/quests/{id}/update`   | edit a quest                      |
-| `POST /api/quests/{id}/delete`   | delete a quest                    |
-| `POST /api/chapters/{id}/toggle` | tick a step                       |
-| `POST /api/chapters/{id}/delete` | delete a step with its substeps   |
-| `POST /api/profile`              | name, skin, language, rest, notepad, layout |
-
-Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
-`{ "error": "text" }` with 400, 404 or 409.
+The full list of endpoints lives in [API.md](API.md). The short version: the
+browser posts an intent to a JSON endpoint and gets the whole new state back.
 
 ## The rules
 
@@ -102,6 +92,9 @@ Writes answer with `{ "state": …, "flash": [ … ] }`. Errors come back as
 - **Five attributes.** The level speaks of volume, the bars of balance.
 - **Experience is computed.** A main quest pays the sum of its chapters plus
   a quarter for closing it — never a number picked by hand.
+- **Nothing done is lost.** A closed main quest or a defeated boss settles in
+  the archive instead of vanishing; deleted quests land there too. Anything
+  can be brought back — restoring a closed quest undoes its closing reward.
 
 ## Interface
 
