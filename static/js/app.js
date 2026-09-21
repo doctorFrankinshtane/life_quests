@@ -166,7 +166,7 @@ async function start() {
       openWindow('intro');
     }
   } catch (error) {
-    setLang('ru');
+    setLang('en');
     applyLanguage();
     failure(error);
   } finally {

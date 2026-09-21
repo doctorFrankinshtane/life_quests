@@ -470,10 +470,10 @@ const DICT = {
   },
 };
 
-let current = 'ru';
+let current = 'en';
 
 export function setLang(lang) {
-  current = DICT[lang] ? lang : 'ru';
+  current = DICT[lang] ? lang : 'en';
   document.documentElement.lang = current;
 }
 

@@ -118,7 +118,7 @@ def _quests(lang):
     ]
 
 
-def fill(con, lang="ru"):
+def fill(con, lang="en"):
     """Заливает демо-набор на выбранном языке. Возвращает число квестов."""
     if con.execute("SELECT count(*) AS n FROM quests").fetchone()["n"]:
         raise AlreadyFilled("в базе уже есть квесты")

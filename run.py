@@ -22,7 +22,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Life Quests")
     parser.add_argument("--demo", action="store_true", help="залить демо-квесты перед запуском")
     parser.add_argument("--demo-only", action="store_true", help="залить демо-квесты и выйти")
-    parser.add_argument("--demo-lang", choices=db.LANGS, default="ru", help="язык демо-квестов")
+    parser.add_argument("--demo-lang", choices=db.LANGS, default="en", help="язык демо-квестов")
     args = parser.parse_args(argv)
 
     config = Config.load()

@@ -21,7 +21,7 @@ CREATE TABLE profile (
   streak     INTEGER NOT NULL DEFAULT 0 CHECK (streak >= 0),
   resting    INTEGER NOT NULL DEFAULT 0 CHECK (resting IN (0, 1)),
   skin       TEXT    NOT NULL DEFAULT 'win98',
-  lang       TEXT    NOT NULL DEFAULT 'ru',
+  lang       TEXT    NOT NULL DEFAULT 'en',
   intro_seen INTEGER NOT NULL DEFAULT 0 CHECK (intro_seen IN (0, 1)),
   notepad    TEXT    NOT NULL DEFAULT '',    -- блокнот: один свободный лист
   places     TEXT    NOT NULL DEFAULT '{}'   -- раскладка окон, JSON

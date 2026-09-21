@@ -70,7 +70,7 @@ class Live(unittest.TestCase):
     def test_state_is_served(self):
         status, state = self.get("/api/state")
         self.assertEqual(status, 200)
-        self.assertEqual(state["profile"]["name"], seed.HERO["ru"])
+        self.assertEqual(state["profile"]["name"], seed.HERO["en"])
         self.assertEqual(len(state["mains"]), 2)
 
     def test_index_page_is_served(self):
