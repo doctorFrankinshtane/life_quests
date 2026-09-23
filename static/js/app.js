@@ -4,7 +4,7 @@ import * as api from './api.js';
 import { applyPlaces, initDesktop, openWindow, renderMenuList, renderWindowMenu } from './desktop.js';
 import { applyLanguage, langName, locale, setLang, skinName, t } from './i18n.js';
 import { initNotepad, showNotepad } from './notepad.js';
-import { failure, flash } from './notify.js';
+import { failure, flash, requestPermission } from './notify.js';
 import { initForms, renderAll, renderStatOptions } from './render.js';
 
 const CLOCK_TICK_MS = 1000;
@@ -147,6 +147,7 @@ async function start() {
   initForms();
   initIntro();
   initNotepad();
+  requestPermission();
   tick();
   setInterval(tick, CLOCK_TICK_MS);
 

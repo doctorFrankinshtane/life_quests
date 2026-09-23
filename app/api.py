@@ -663,7 +663,9 @@ def toggle_side(con, quest_id, _body):
 
     if done:
         log(con, "side_done", title=quest["title"], xp=quest["xp_reward"])
-        return grant_xp(con, quest["xp_reward"], quest["stat"])
+        return [note("side_done", title=quest["title"], xp=quest["xp_reward"])] + grant_xp(
+            con, quest["xp_reward"], quest["stat"]
+        )
 
     take_xp(con, quest["xp_reward"], quest["stat"])
     log(con, "side_undone", title=quest["title"], xp=quest["xp_reward"])

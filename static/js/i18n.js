@@ -96,6 +96,7 @@ const DICT = {
       'due.late': 'просрочен на {n}',
       'due.overdue': 'просрочен',
       'day': ['день', 'дня', 'дней'],
+      'notify.due.head': 'Срок поджимает',
 
       'form.title': 'Название',
       'form.title.hint': 'пробежать 10 км без остановки',
@@ -205,7 +206,8 @@ const DICT = {
         head: 'Квест закрыт',
         body: '«{title}» пройден целиком. Бонус +{bonus} XP.',
       },
-      side_done: { log: '+{xp} XP · {title}' },
+      side_done: { log: '+{xp} XP · {title}',
+                   head: 'Квест выполнен', body: '«{title}» · +{xp} XP.' },
       side_undone: { log: 'Отмена · −{xp} XP · {title}' },
       boss_hit: { log: 'Удар · {title} · −1 HP · осталось {left}' },
       boss_defeated: {
@@ -325,6 +327,7 @@ const DICT = {
       'due.late': '{n} overdue',
       'due.overdue': 'overdue',
       'day': ['day', 'days', 'days'],
+      'notify.due.head': 'Deadline approaching',
 
       'form.title': 'Name',
       'form.title.hint': 'run 10 km without stopping',
@@ -434,7 +437,8 @@ const DICT = {
         head: 'Quest closed',
         body: '“{title}” is done. Bonus +{bonus} XP.',
       },
-      side_done: { log: '+{xp} XP · {title}' },
+      side_done: { log: '+{xp} XP · {title}',
+                   head: 'Quest done', body: '“{title}” · +{xp} XP.' },
       side_undone: { log: 'Undone · −{xp} XP · {title}' },
       boss_hit: { log: 'Strike · {title} · −1 HP · {left} left' },
       boss_defeated: {

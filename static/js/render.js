@@ -2,7 +2,7 @@
 
 import * as api from './api.js';
 import { eventLine, eventNote, plural, rankName, repeatLabel, statName, t } from './i18n.js';
-import { failure, flash, toast } from './notify.js';
+import { checkDeadlines, failure, flash, toast } from './notify.js';
 import { openWindow } from './desktop.js';
 
 const $ = (id) => document.getElementById(id);
@@ -656,4 +656,5 @@ export function renderAll() {
   renderSides();
   renderArchive();
   renderLog();
+  checkDeadlines();
 }
